@@ -245,11 +245,11 @@ jobs:
     - name: Create Dockerfile
       run: |
         cat > Dockerfile << 'EOF'
-FROM openjdk:21-jre-slim
-COPY target/*.jar app.jar
-EXPOSE 8085
-ENTRYPOINT ["java", "-jar", "/app.jar"]
-EOF
+        FROM openjdk:21-jre-slim
+        COPY target/*.jar app.jar
+        EXPOSE 8085
+        ENTRYPOINT ["java", "-jar", "/app.jar"]
+        EOF
         
     - name: Build Docker Image
       run: |
