@@ -222,135 +222,96 @@
     <script>
         class AuthSystem {
             constructor() {
-                this.selectedRole = 'exit';
+                this.currentUser = null;
+                this.currentRole = null;
                 this.init();
             }
 
             init() {
-                this.setupEventListeners();
-                this.checkExistingAuth();
-            }
-
-            setupEventListeners() {
-                // Role selector
-                document.querySelectorAll('.role-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
-                        e.target.classList.add('active');
-                        this.selectedRole = e.target.dataset.role;
-                        console.log('Role selected:', this.selectedRole); // Debug log
-                        
-                        // Check for existing auth session when role changes
-                        this.checkExistingAuth();
-                    });
-                });
-
-                // Login form
-                document.getElementById('loginForm').addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    this.handleLogin();
-                });
-            }
-
-            checkExistingAuth() {
-                try {
-                    // Check for any existing auth session
-                    const exitAuth = localStorage.getItem('parkingAuth_exit');
-                    const adminAuth = localStorage.getItem('parkingAuth_admin');
-                    
-                    // Debug logging
-                    console.log('Auth check - Exit auth:', exitAuth);
-                    console.log('Auth check - Admin auth:', adminAuth);
-                    console.log('Auth check - Selected role:', this.selectedRole);
-                    
-                    // Only redirect if there's an active session and we're not coming from logout
-                    // Check if we're coming from a logout (look for URL parameter or check if we just cleared a session)
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const isFromLogout = urlParams.get('logout') === 'true' || 
-                                       (urlParams.get('cleared') === 'true');
-                    
-                    console.log('Auth check - Is from logout:', isFromLogout);
-                    console.log('Auth check - URL params:', Object.fromEntries(urlParams));
-                    
-                    if (!isFromLogout) {
-                        const currentRoleAuth = this.selectedRole === 'exit' ? exitAuth : adminAuth;
-                        
-                        if (currentRoleAuth) {
-                            const auth = JSON.parse(currentRoleAuth);
-                            if (auth.expiresAt > Date.now()) {
-                                console.log('Auth check - Redirecting to terminal:', this.selectedRole);
-                                this.redirectToTerminal(this.selectedRole);
-                            } else {
-                                // Clean up expired session
-                                localStorage.removeItem(`parkingAuth_${this.selectedRole}`);
-                            }
-                        }
-                    } else {
-                        // Clear URL parameters after processing logout to prevent issues
-                        if (urlParams.get('logout') || urlParams.get('cleared')) {
-                            console.log('Auth check - Clearing URL params');
-                            window.history.replaceState({}, document.title, window.location.pathname);
-                        }
-                    }
-                } catch (error) {
-                    console.warn('Auth check failed:', error);
-                    localStorage.removeItem(`parkingAuth_${this.selectedRole}`);
+                console.log('Auth system initializing...'); // Debug log
+                
+                // Check if this is a logout redirect
+                const urlParams = new URLSearchParams(window.location.search);
+                const isLogout = urlParams.get('logout') === 'true';
+                
+                console.log('URL params:', { isLogout }); // Debug log
+                
+                if (isLogout) {
+                    // Show logout success message
+                    this.showSuccess('You have been logged out successfully.');
+                    // Clean the URL without page reload
+                    window.history.replaceState({}, document.title, window.location.pathname);
                 }
+                
+                this.setupEventListeners();
+                this.setupRoleSelection();
             }
 
-            handleLogin() {
+            async handleLogin() {
                 const username = document.getElementById('username').value.trim();
-                const password = document.getElementById('password').value;
-                const loginBtn = document.getElementById('loginBtn');
+                const password = document.getElementById('password').value.trim();
+                const role = this.currentRole;
 
-                console.log('Login attempt with role:', this.selectedRole); // Debug log
+                console.log('Login attempt:', { username, role }); // Debug log
 
-                // Basic validation
-                if (!username || !password) {
-                    this.showError('Please enter both username and password.');
+                // Validate inputs
+                const usernameInput = document.getElementById('username');
+                const passwordInput = document.getElementById('password');
+                
+                if (!this.validateInput(usernameInput) || !this.validateInput(passwordInput)) {
                     return;
                 }
 
-                // Show loading state
+                // Check for duplicate login (same role already active)
+                const existingAuth = localStorage.getItem(`parkingAuth_${role}`);
+                if (existingAuth) {
+                    try {
+                        const auth = JSON.parse(existingAuth);
+                        if (auth.expiresAt > Date.now()) {
+                            this.showError(`This ${role} terminal is already open in another tab. Please close the other tab first.`);
+                            return;
+                        } else {
+                            // Expired session, remove it
+                            localStorage.removeItem(`parkingAuth_${role}`);
+                        }
+                    } catch (e) {
+                        // Invalid data, remove it
+                        localStorage.removeItem(`parkingAuth_${role}`);
+                    }
+                }
+
+                // Disable login button
+                const loginBtn = document.getElementById('loginBtn');
                 loginBtn.disabled = true;
                 loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...';
 
-                // Simulate authentication delay
-                setTimeout(() => {
-                    const isValid = this.validateCredentials(username, password, this.selectedRole);
-                    
-                    if (isValid) {
-                        this.createAuthSession(username, this.selectedRole);
-                    } else {
-                        this.showError('Invalid credentials. Please try again.');
-                        loginBtn.disabled = false;
-                        loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
-                    }
-                }, 500);
-            }
-
-            validateCredentials(username, password, role) {
-                // In production, this should be server-side validation
-                // For demo purposes, allowing basic validation
-                // TODO: Implement proper server-side authentication
-                
-                // Basic validation - in production, validate against database
-                const isValid = username && password && username.length >= 3 && password.length >= 3;
-                
-                return isValid;
-            }
-
-            createAuthSession(username, role) {
                 try {
+                    // Simulate authentication delay
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+
+                    // Validate credentials based on role
+                    const isValid = this.validateCredentials(username, password, role);
+                    
+                    if (!isValid) {
+                        throw new Error('Invalid credentials');
+                    }
+
+                    // Create session data with tab ID
+                    const tabId = this.generateTabId();
                     const authData = {
                         username: username,
                         role: role,
                         loginTime: Date.now(),
-                        expiresAt: Date.now() + (8 * 60 * 60 * 1000) // 8 hours
+                        expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
+                        sessionId: this.generateSessionId(),
+                        tabId: tabId
                     };
 
                     // Store role-specific session
                     localStorage.setItem(`parkingAuth_${role}`, JSON.stringify(authData));
+                    
+                    // Store active tab reference
+                    localStorage.setItem(`activeTab_${role}`, tabId);
                     
                     this.showSuccess('Login successful! Redirecting...');
                     
@@ -364,6 +325,125 @@
                     loginBtn.disabled = false;
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
                 }
+            }
+
+            generateTabId() {
+                return 'tab_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            }
+
+            setupEventListeners() {
+                const loginForm = document.getElementById('loginForm');
+                if (loginForm) {
+                    loginForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        this.handleLogin();
+                    });
+                }
+
+                // Add input validation
+                const inputs = document.querySelectorAll('input[required]');
+                inputs.forEach(input => {
+                    input.addEventListener('blur', () => this.validateInput(input));
+                    input.addEventListener('input', () => this.clearInputError(input));
+                });
+            }
+
+            setupRoleSelection() {
+                const roleButtons = document.querySelectorAll('.role-btn');
+                roleButtons.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        // Remove active class from all buttons
+                        roleButtons.forEach(b => b.classList.remove('active'));
+                        // Add active class to clicked button
+                        btn.classList.add('active');
+                        
+                        // Store selected role
+                        this.currentRole = btn.dataset.role;
+                        console.log('Selected role:', this.currentRole); // Debug log
+                    });
+                });
+
+                // Set default role
+                const defaultBtn = document.querySelector('.role-btn[data-role="exit"]');
+                if (defaultBtn) {
+                    defaultBtn.classList.add('active');
+                    this.currentRole = 'exit';
+                }
+            }
+
+            validateInput(input) {
+                const value = input.value.trim();
+                let isValid = true;
+                let errorMessage = '';
+
+                if (input.id === 'username') {
+                    if (!value) {
+                        errorMessage = 'Username is required';
+                        isValid = false;
+                    } else if (value.length < 3) {
+                        errorMessage = 'Username must be at least 3 characters';
+                        isValid = false;
+                    }
+                } else if (input.id === 'password') {
+                    if (!value) {
+                        errorMessage = 'Password is required';
+                        isValid = false;
+                    } else if (value.length < 4) {
+                        errorMessage = 'Password must be at least 4 characters';
+                        isValid = false;
+                    }
+                }
+
+                if (!isValid) {
+                    this.showInputError(input, errorMessage);
+                }
+
+                return isValid;
+            }
+
+            showInputError(input, message) {
+                input.classList.add('error');
+                
+                // Find or create error element
+                let errorElement = input.parentNode.querySelector('.input-error');
+                if (!errorElement) {
+                    errorElement = document.createElement('div');
+                    errorElement.className = 'input-error';
+                    input.parentNode.appendChild(errorElement);
+                }
+                
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+            }
+
+            clearInputError(input) {
+                input.classList.remove('error');
+                const errorElement = input.parentNode.querySelector('.input-error');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+            }
+
+            validateCredentials(username, password, role) {
+                const credentials = {
+                    exit: {
+                        'exit': 'exit123',
+                        'operator': 'operator123',
+                        'staff': 'staff123'
+                    },
+                    admin: {
+                        'admin': 'admin123',
+                        'manager': 'manager123',
+                        'supervisor': 'supervisor123'
+                    }
+                };
+
+                const roleCredentials = credentials[role];
+                return roleCredentials && roleCredentials[username] === password;
+            }
+
+            generateSessionId() {
+                return 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
             }
 
             redirectToTerminal(role) {
@@ -411,12 +491,15 @@
                 
                 setTimeout(() => {
                     successAlert.style.display = 'none';
-                }, 3000);
+                }, 5000);
             }
         }
 
-        // Initialize auth system
-        const authSystem = new AuthSystem();
+        // Initialize auth system when DOM is loaded
+        let authSystem;
+        document.addEventListener('DOMContentLoaded', () => {
+            authSystem = new AuthSystem();
+        });
     </script>
 </body>
 </html>

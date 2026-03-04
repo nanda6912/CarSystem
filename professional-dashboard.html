@@ -823,7 +823,23 @@
                 const auth = JSON.parse(authData);
                 if (auth.expiresAt <= Date.now()) {
                     localStorage.removeItem('parkingAuth_admin');
+                    localStorage.removeItem('activeTab_admin');
                     this.redirectToLogin();
+                    return false;
+                }
+
+                // Check if this is the active tab for this role
+                const activeTabId = localStorage.getItem('activeTab_admin');
+                if (activeTabId && auth.tabId !== activeTabId) {
+                    // Another tab is active for this role
+                    this.showError('This dashboard is open in another tab. Please use the active tab or close the other tab first.');
+                    setTimeout(() => {
+                        window.close();
+                        // If window can't be closed, redirect to login
+                        setTimeout(() => {
+                            this.redirectToLogin();
+                        }, 2000);
+                    }, 3000);
                     return false;
                 }
 
@@ -833,7 +849,31 @@
                 }
 
                 this.currentUser = auth.username;
+                this.currentTabId = auth.tabId;
+                
+                // Set up tab close detection
+                this.setupTabCloseDetection();
+                
                 return true;
+            }
+
+            setupTabCloseDetection() {
+                // Clean up when tab is closed
+                window.addEventListener('beforeunload', () => {
+                    // Remove active tab reference
+                    localStorage.removeItem('activeTab_admin');
+                });
+
+                // Set up heartbeat to detect if tab is still active
+                this.heartbeatInterval = setInterval(() => {
+                    const authData = localStorage.getItem('parkingAuth_admin');
+                    if (authData) {
+                        const auth = JSON.parse(authData);
+                        // Update last activity timestamp
+                        auth.lastActivity = Date.now();
+                        localStorage.setItem('parkingAuth_admin', JSON.stringify(auth));
+                    }
+                }, 30000); // Every 30 seconds
             }
 
             redirectToLogin() {
@@ -843,15 +883,21 @@
             logout(event) {
                 event.preventDefault();
                 
-                // Clear authentication
+                // Clear heartbeat interval
+                if (this.heartbeatInterval) {
+                    clearInterval(this.heartbeatInterval);
+                }
+                
+                // Clear only this terminal's authentication and active tab reference
                 localStorage.removeItem('parkingAuth_admin');
+                localStorage.removeItem('activeTab_admin');
                 
                 // Show success message
                 this.showSuccess('Logged out successfully. Redirecting to login...');
                 
-                // Redirect after delay with logout parameter
+                // Redirect after delay with logout parameter (but don't clear other sessions)
                 setTimeout(() => {
-                    window.location.href = 'auth.html?logout=true&cleared=true';
+                    window.location.href = 'auth.html?logout=true';
                 }, 1500);
             }
 
