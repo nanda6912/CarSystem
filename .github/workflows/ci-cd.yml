@@ -102,7 +102,6 @@ jobs:
         for file in *.html; do
           if [ -f "$file" ]; then
             echo "Validating $file"
-            # Basic HTML validation
             if grep -q "<!DOCTYPE html>" "$file"; then
               echo "✅ $file has valid DOCTYPE"
             else
@@ -118,7 +117,6 @@ jobs:
         for file in *.html; do
           if [ -f "$file" ]; then
             echo "Checking $file"
-            # Extract and validate JavaScript
             node -c <(sed -n '/<script>/,/<\/script>/p' "$file" | sed 's/<script>//;s/<\/script>//')
           fi
         done
@@ -129,7 +127,6 @@ jobs:
         for file in *.html; do
           if [ -f "$file" ]; then
             echo "Checking CSS in $file"
-            # Basic CSS validation
             if grep -q "<style>" "$file"; then
               echo "✅ $file contains styles"
             fi
@@ -172,7 +169,6 @@ jobs:
         
     - name: OWASP Dependency Check
       run: |
-        # Install OWASP Dependency Check
         wget https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.0/dependency-check-8.4.0-release.zip
         unzip dependency-check-8.4.0-release.zip
         ./dependency-check/bin/dependency-check.sh --project "Smart Parking" --scan . --format XML --out reports
@@ -211,14 +207,10 @@ jobs:
         
     - name: Load Testing
       run: |
-        # Install Apache Bench
         sudo apt-get update
         sudo apt-get install -y apache2-utils
-        
-        # Test API endpoints
         echo "Testing /api/slots endpoint..."
         ab -n 100 -c 10 http://localhost:8085/api/slots
-        
         echo "Testing /api/bookings endpoint..."
         ab -n 50 -c 5 http://localhost:8085/api/bookings
         
@@ -295,13 +287,11 @@ jobs:
     - name: Deploy to Staging
       run: |
         echo "🚀 Deploying to staging environment..."
-        # Add your staging deployment commands here
         echo "✅ Staging deployment completed"
         
     - name: Health Check
       run: |
         echo "🔍 Performing health check..."
-        # Add health check commands for staging
         echo "✅ Health check passed"
 
   # Deployment Job (Production)
@@ -323,19 +313,16 @@ jobs:
     - name: Deploy to Production
       run: |
         echo "🚀 Deploying to production environment..."
-        # Add your production deployment commands here
         echo "✅ Production deployment completed"
         
     - name: Production Health Check
       run: |
         echo "🔍 Performing production health check..."
-        # Add production health check commands
         echo "✅ Production health check passed"
         
     - name: Notify Deployment
       run: |
         echo "📢 Deployment notification sent"
-        # Add notification logic (Slack, email, etc.)
 
   # Cleanup Job
   cleanup:
