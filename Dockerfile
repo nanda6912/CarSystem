@@ -1,20 +1,12 @@
 # =============================================================================
 # Smart Parking System - Production Dockerfile
 # =============================================================================
-# Simple, reliable build for Railway deployment
+# Multi-stage build for optimal size and compatibility
 # =============================================================================
 
-FROM openjdk:21-jdk-slim
+# Build Stage
+FROM maven:3.9.4-eclipse-temurin-21 AS build
 
-# Install necessary packages
-RUN apt-get update && \
-    apt-get install -y curl && \
-    rm -rf /var/lib/apt/lists/*
-
-# Create application user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-# Set working directory
 WORKDIR /app
 
 # Copy Maven configuration files
@@ -23,6 +15,24 @@ COPY src ./src
 
 # Build the application
 RUN mvn clean package -DskipTests
+
+# Runtime Stage
+FROM eclipse-temurin:21-jre-alpine
+
+# Install necessary packages
+RUN apk update && \
+    apk add --no-cache curl && \
+    rm -rf /var/cache/apk/*
+
+# Create application user
+RUN addgroup -g 1000 appuser && \
+    adduser -D -s /bin/sh -u 1000 -G appuser appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy the built JAR from build stage
+COPY --from=build /app/target/*.jar app.jar
 
 # Change ownership to appuser
 RUN chown -R appuser:appuser /app
@@ -41,7 +51,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 ENV JAVA_OPTS="-Xmx512m -Xms256m -XX:+UseG1GC -XX:+UseContainerSupport"
 
 # Application entrypoint
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar target/*.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 
 # Labels for metadata
 LABEL maintainer="Smart Parking Team"
