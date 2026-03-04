@@ -686,6 +686,11 @@
     </div>
 
     <script>
+        // Dynamic Backend URL Configuration
+        const BACKEND_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8085' 
+            : 'https://your-railway-app.railway.app';
+        
         class PublicBookingSystem {
             constructor() {
                 this.slots = [];
@@ -851,7 +856,7 @@
                     }
                     
                     // Try to load from backend first (PostgreSQL)
-                    const response = await fetch('http://localhost:8085/api/slots');
+                    const response = await fetch(`${BACKEND_URL}/api/slots`);
                     if (response.ok) {
                         this.slots = await response.json();
                         this.saveSlotsToStorage(); // Cache database data
@@ -903,7 +908,7 @@
                     this.loadBookingsFromStorage();
                     
                     // Also try to sync with backend if available
-                    const response = await fetch('http://localhost:8085/api/bookings');
+                    const response = await fetch(`${BACKEND_URL}/api/bookings`);
                     if (response.ok) {
                         const backendBookings = await response.json();
                         // Merge with local bookings (public booking only)
@@ -1053,7 +1058,7 @@
                 this.showLoading(true);
 
                 try {
-                    const response = await fetch('http://localhost:8085/api/bookings', {
+                    const response = await fetch(`${BACKEND_URL}/api/bookings`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
