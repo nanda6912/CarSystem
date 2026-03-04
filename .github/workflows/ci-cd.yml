@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [ main ]
 
-permissions:
-  contents: read
-  security-events: write
-  actions: read
-
 env:
   JAVA_VERSION: '21'
   MAVEN_OPTS: '-Xmx2048m'
@@ -22,11 +17,10 @@ jobs:
     
     services:
       postgres:
-        image: postgres:15
+        image: postgres:16
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: smart_parking_db_test
-          POSTGRES_USER: postgres
         ports:
           - 5432:5432
         options: >-
@@ -56,29 +50,15 @@ jobs:
           
     - name: Wait for PostgreSQL
       run: |
-        echo "Waiting for PostgreSQL to be ready..."
-        timeout 120 bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 2; done'
-        echo "PostgreSQL is ready!"
-        
-    - name: Test PostgreSQL Connection
-      run: |
-        PGPASSWORD=${{ secrets.POSTGRES_PASSWORD }} psql -h localhost -U postgres -d smart_parking_db_test -c "SELECT version();" || echo "Connection test failed"
+        timeout 60 bash -c 'until pg_isready -h localhost -p 5432; do sleep 1; done'
         
     - name: Validate Database Schema
       run: |
-        PGPASSWORD=${{ secrets.POSTGRES_PASSWORD }} psql -h localhost -U postgres -d smart_parking_db_test -f src/main/resources/schema.sql || echo "Schema validation completed"
+        PGPASSWORD=${{ secrets.POSTGRES_PASSWORD }} psql -h localhost -U postgres -d smart_parking_db_test -f src/main/resources/schema.sql
         
     - name: Run Backend Tests
       run: |
-        echo "Starting backend tests..."
-        # Try to run tests with PostgreSQL
-        if mvn clean test; then
-          echo "Tests completed successfully with PostgreSQL"
-        else
-          echo "PostgreSQL tests failed, trying with H2 in-memory database..."
-          # Fallback to H2 for testing
-          mvn clean test -Dspring.profiles.active=h2-test || echo "Tests completed with fallback"
-        fi
+        mvn clean test
         mkdir -p target/surefire-reports
         # Create dummy test report if no tests exist
         if [ ! -f target/surefire-reports/*.xml ]; then
@@ -88,7 +68,6 @@ jobs:
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/smart_parking_db_test
         SPRING_DATASOURCE_USERNAME: postgres
         SPRING_DATASOURCE_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      continue-on-error: true
         
     - name: Generate Test Report
       uses: dorny/test-reporter@v1
@@ -176,7 +155,7 @@ jobs:
         output: 'trivy-results.sarif'
         
     - name: Upload Trivy Results
-      uses: github/codeql-action/upload-sarif@v4
+      uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: 'trivy-results.sarif'
         
@@ -192,7 +171,6 @@ jobs:
       with:
         name: owasp-reports
         path: reports/
-      continue-on-error: true
 
   # Performance Testing Job
   performance-test:
@@ -267,11 +245,11 @@ jobs:
     - name: Create Dockerfile
       run: |
         cat > Dockerfile << 'EOF'
-        FROM openjdk:21-jre-slim
-        COPY target/*.jar app.jar
-        EXPOSE 8085
-        ENTRYPOINT ["java", "-jar", "/app.jar"]
-        EOF
+FROM openjdk:21-jre-slim
+COPY target/*.jar app.jar
+EXPOSE 8085
+ENTRYPOINT ["java", "-jar", "/app.jar"]
+EOF
         
     - name: Build Docker Image
       run: |
