@@ -251,7 +251,46 @@ Your Smart Parking System is now **production-ready** with:
 
 ---
 
-## 📞 **Support**
+## � **CI/CD Pipeline**
+
+### **✅ Automated DevOps Pipeline**
+The Smart Parking System includes a comprehensive **GitHub Actions CI/CD pipeline** for enterprise-grade deployment automation.
+
+### **🔄 Pipeline Features**
+- **🧪 Automated Testing**: Backend tests with PostgreSQL 18.2
+- **🔍 Security Scanning**: OWASP and Trivy vulnerability scans
+- **⚡ Performance Testing**: Load testing with Apache Bench
+- **🌐 Frontend Validation**: HTML, CSS, JavaScript validation
+- **🚀 Automated Deployment**: Staging → Production pipeline
+- **📊 Monitoring**: Health checks and reporting
+
+### **🎯 Deployment Flow**
+```
+Development → Testing → Security → Performance → Staging → Production
+     ↓            ↓         ↓          ↓          ↓          ↓
+   Auto        Auto      Auto       Auto       Auto     Manual
+```
+
+### **📁 CI/CD Files**
+- **`.github/workflows/ci-cd.yml`** - Complete pipeline configuration
+- **`CI-CD-SETUP.md`** - Detailed setup and configuration guide
+
+### **🚀 Quick CI/CD Setup**
+```bash
+# 1. Configure GitHub Environments
+# - staging (auto-deploy)
+# - production (manual approval)
+
+# 2. Add Repository Secrets
+# DATABASE_URL, DATABASE_PASSWORD, etc.
+
+# 3. Push to trigger pipeline
+git push origin main
+```
+
+---
+
+## �📞 **Support**
 
 For technical support or questions:
 - **📊 Dashboard**: Monitor system performance
