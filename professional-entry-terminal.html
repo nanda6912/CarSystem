@@ -482,11 +482,29 @@
             width: 100%;
             padding: 15px;
             background: var(--dark-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
             color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
             font-size: 1rem;
             transition: all 0.3s ease;
+        }
+
+        .form-input[type="select"],
+        select.form-input {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 20px;
+            padding-right: 40px;
+        }
+
+        .form-input[type="select"] option,
+        select.form-input option {
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            padding: 10px;
         }
 
         .form-input:focus {
@@ -790,12 +808,20 @@
 
             <form id="bookingForm">
                 <div class="form-group">
+                    <label class="form-label" for="ownerName">
+                        <i class="fas fa-user"></i> Owner Name
+                    </label>
+                    <input type="text" id="ownerName" class="form-input" 
+                           placeholder="Enter owner name" required maxlength="50">
+                </div>
+
+                <div class="form-group">
                     <label class="form-label" for="vehicleNumber">
                         <i class="fas fa-car"></i> Vehicle Number
                     </label>
                     <input type="text" id="vehicleNumber" class="form-input" 
-                           placeholder="e.g., ABC123" required maxlength="15" 
-                           pattern="[A-Za-z0-9]+">
+                           placeholder="e.g., MH-12-AB-1234 or MH12AB1234" required maxlength="15" 
+                           pattern="[A-Za-z0-9-]+">
                 </div>
 
                 <div class="form-group">
@@ -803,8 +829,22 @@
                         <i class="fas fa-phone"></i> Phone Number
                     </label>
                     <input type="tel" id="phoneNumber" class="form-input" 
-                           placeholder="10-digit number" required maxlength="10" 
+                           placeholder="9876543210" required maxlength="10" 
                            pattern="[0-9]{10}">
+                    <small style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; display: block;">
+                        10-digit mobile number (e.g., 9876543210)
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="vehicleType">
+                        <i class="fas fa-tag"></i> Vehicle Type
+                    </label>
+                    <select id="vehicleType" name="vehicleType" required class="form-input">
+                        <option value="">-- Select Vehicle Type --</option>
+                        <option value="CAR">Car</option>
+                        <option value="BIKE">Bike</option>
+                    </select>
                 </div>
 
                 <div class="form-actions">
@@ -1089,6 +1129,16 @@
 
             async loadSlots() {
                 try {
+                    // Clear any cached mock data to force reload from database
+                    if (localStorage.getItem('parkingSlots')) {
+                        const cachedSlots = JSON.parse(localStorage.getItem('parkingSlots'));
+                        // Check if cached data is mock format (no block letters)
+                        if (cachedSlots.length > 0 && cachedSlots[0].slotId.match(/^[GF]\d{3}$/)) {
+                            console.log('Clearing mock data cache, loading from database');
+                            localStorage.removeItem('parkingSlots');
+                        }
+                    }
+                    
                     // Add timeout to prevent long waits
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
@@ -1101,16 +1151,18 @@
                     
                     if (response.ok) {
                         this.slots = await response.json();
-                        this.saveSlotsToStorage(); // Cache for offline use
+                        this.saveSlotsToStorage(); // Cache database data
+                        console.log('Loaded slots from PostgreSQL database');
                     } else {
                         throw new Error('Backend not available');
                     }
                 } catch (error) {
-                    console.log('Backend not available, using local data');
+                    console.log('Backend not available, using local data:', error);
                     
                     // Try to load from localStorage first
                     if (!this.loadSlotsFromStorage()) {
                         // If no stored data, generate mock data
+                        console.log('Generating mock data');
                         this.loadMockSlots();
                         this.saveSlotsToStorage();
                     }
@@ -1257,8 +1309,16 @@
             }
 
             async createBooking() {
+                const ownerName = document.getElementById('ownerName').value;
                 const vehicleNumber = document.getElementById('vehicleNumber').value.toUpperCase();
                 const phoneNumber = document.getElementById('phoneNumber').value;
+                const vehicleType = document.getElementById('vehicleType').value;
+
+                // Validate all fields are filled
+                if (!ownerName || !vehicleNumber || !phoneNumber || !vehicleType) {
+                    this.showError('Please fill in all fields');
+                    return;
+                }
 
                 // Client-side validation: Check if vehicle is already parked
                 if (this.bookings && this.bookings.length > 0) {
@@ -1281,7 +1341,9 @@
                         body: JSON.stringify({
                             slotId: this.selectedSlot.slotId,
                             vehicleNumber: vehicleNumber,
-                            phoneNumber: phoneNumber
+                            ownerName: ownerName,
+                            phoneNumber: phoneNumber,
+                            vehicleType: vehicleType
                         })
                     });
 
@@ -1318,7 +1380,9 @@
                         bookingId: 'B' + Date.now(),
                         slotId: this.selectedSlot.slotId,
                         vehicleNumber: vehicleNumber,
+                        ownerName: ownerName,
                         phoneNumber: phoneNumber,
+                        vehicleType: vehicleType,
                         entryTime: new Date().toISOString(),
                         status: 'ACTIVE'
                     };
@@ -1390,38 +1454,76 @@
             }
 
             listenForBookingEvents() {
-                // Listen for booking events from other terminals
+                // Listen for storage events (cross-tab communication)
                 window.addEventListener('storage', (event) => {
                     if (event.key === 'newBooking' || event.key === 'publicBooking_newBooking') {
                         const bookingData = JSON.parse(event.newValue);
-                        console.log('New booking detected:', bookingData);
+                        console.log('Entry: New booking detected:', bookingData);
                         this.loadSlots(); // Refresh slots
                         this.updateStats(); // Update statistics
                     }
-                });
-
-                // Listen for custom events from public booking page
-                window.addEventListener('bookingCreated', (event) => {
-                    console.log('Public booking created:', event.detail);
-                    this.loadSlots(); // Refresh slots
-                    this.updateStats(); // Update statistics
-                });
-
-                // Listen for public booking specific events
-                window.addEventListener('publicBookingCreated', (event) => {
-                    console.log('Public booking created:', event.detail);
-                    this.loadSlots(); // Refresh slots
-                    this.updateStats(); // Update statistics
-                });
-
-                // Listen for checkout events
-                window.addEventListener('bookingCompleted', (event) => {
-                    console.log('Booking completed:', event.detail);
-                    // Force refresh slots from backend to get latest status
-                    setTimeout(() => {
-                        this.loadSlots(); // Refresh slots
+                    
+                    if (event.key === 'bookingCompleted') {
+                        console.log('Entry: Booking completed detected:', event.newValue);
+                        this.loadSlots(); // Refresh slots to show released slot
                         this.updateStats(); // Update statistics
-                    }, 500); // Small delay to ensure backend has updated
+                    }
+                });
+                
+                // Listen for custom events from public booking page
+                window.addEventListener('publicBookingCreated', (event) => {
+                    console.log('Entry: Public booking created:', event.detail);
+                    this.loadSlots(); // Refresh slots
+                    this.updateStats(); // Update statistics
+                });
+
+                window.addEventListener('bookingCreated', (event) => {
+                    console.log('Entry: Professional booking created:', event.detail);
+                    this.loadSlots(); // Refresh slots
+                    this.updateStats(); // Update statistics
+                });
+
+                window.addEventListener('exitCheckoutCompleted', (event) => {
+                    console.log('Entry: Exit checkout completed:', event.detail);
+                    this.loadSlots(); // Refresh slots
+                    this.updateStats(); // Update statistics
+                });
+
+                // Listen for slot status changes
+                window.addEventListener('slotStatusChanged', (event) => {
+                    console.log('Entry: Slot status changed:', event.detail);
+                    this.loadSlotsFromStorage();
+                    this.renderSlots();
+                    this.updateStats();
+                });
+
+                // Listen for focus events
+                window.addEventListener('focusTab', (event) => {
+                    const tabId = event.detail.tabId;
+                    const currentTabId = this.getTabId(window.location.pathname.split('/').pop());
+                    
+                    if (tabId === currentTabId) {
+                        window.focus();
+                    }
+                });
+
+                // Listen for storage focus events
+                window.addEventListener('storage', (event) => {
+                    if (event.key === 'focusTab') {
+                        const tabId = event.newValue;
+                        const currentTabId = this.getTabId(window.location.pathname.split('/').pop());
+                        
+                        if (tabId === currentTabId) {
+                            window.focus();
+                        }
+                    }
+                    
+                    if (event.key === 'parkingSlots') {
+                        console.log('Entry: Slots updated from another terminal');
+                        this.loadSlotsFromStorage();
+                        this.renderSlots();
+                        this.updateStats();
+                    }
                 });
             }
 
@@ -1435,13 +1537,6 @@
                             this.loadSlots(); // Refresh slots
                             this.loadSlots();
                         }
-                    }
-                    
-                    if (event.key === 'parkingSlots') {
-                        console.log('Slots updated from another terminal');
-                        this.loadSlotsFromStorage();
-                        this.renderSlots();
-                        this.updateStats();
                     }
                     
                     // Listen for booking completion events

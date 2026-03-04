@@ -1674,41 +1674,53 @@
                 window.addEventListener('storage', (event) => {
                     if (event.key === 'newBooking') {
                         const booking = JSON.parse(event.newValue);
-                        console.log('New booking detected in exit terminal:', booking);
+                        console.log('Exit: New booking detected:', booking);
+                        this.loadRecentBookings();
+                    }
+                    
+                    if (event.key === 'publicBooking_newBooking') {
+                        const bookingData = JSON.parse(event.newValue);
+                        console.log('Exit: Public booking detected:', bookingData.booking);
                         this.loadRecentBookings();
                     }
                     
                     if (event.key === 'bookingCompleted') {
-                        console.log('Booking completed detected in exit terminal');
+                        console.log('Exit: Booking completed detected:', event.newValue);
                         this.loadRecentBookings();
                     }
                 });
 
                 // Listen for custom events from entry terminal
                 window.addEventListener('bookingCreated', (event) => {
-                    console.log('Entry terminal booking detected:', event.detail);
+                    console.log('Exit: Entry terminal booking detected:', event.detail);
                     this.loadRecentBookings();
                 });
 
                 // Listen for custom events from public booking page
                 window.addEventListener('publicBookingCreated', (event) => {
-                    console.log('Public booking detected:', event.detail);
+                    console.log('Exit: Public booking detected:', event.detail);
                     this.loadRecentBookings();
                 });
 
                 // Listen for checkout events from this terminal
                 window.addEventListener('checkoutCompleted', (event) => {
-                    console.log('Checkout completed in this terminal:', event.detail);
+                    console.log('Exit: Checkout completed in this terminal:', event.detail);
                     // Notify other terminals
                     localStorage.setItem('bookingCompleted', JSON.stringify({
-                        booking: event.detail,
+                        bookingId: event.detail.bookingId,
                         timestamp: Date.now()
                     }));
                     
-                    // Trigger dashboard update
-                    window.dispatchEvent(new CustomEvent('bookingCompleted', {
+                    // Dispatch custom events for other terminals on same page
+                    window.dispatchEvent(new CustomEvent('exitCheckoutCompleted', {
                         detail: event.detail
                     }));
+                });
+
+                // Listen for exit checkout events from other terminals
+                window.addEventListener('exitCheckoutCompleted', (event) => {
+                    console.log('Exit: Checkout completed in another terminal:', event.detail);
+                    this.loadRecentBookings();
                 });
             }
 

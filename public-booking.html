@@ -241,10 +241,27 @@
             padding: 12px 15px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--card-bg);
             color: var(--text-primary);
             font-size: 1rem;
             transition: all 0.3s ease;
+        }
+
+        /* Specific styling for select dropdown */
+        .form-group select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 20px;
+            padding-right: 40px;
+        }
+
+        .form-group select option {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            padding: 10px;
         }
 
         .form-group input:focus,
@@ -513,69 +530,6 @@
             transform: scale(1.02);
         }
 
-        /* Vehicle type selection enhancement */
-        .vehicle-type-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            max-width: 400px;
-            margin: 0 auto;
-        }
-
-        .vehicle-option {
-            position: relative;
-        }
-
-        .vehicle-option input[type="radio"] {
-            position: absolute;
-            opacity: 0;
-        }
-
-        .vehicle-option label {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 15px;
-            border: 2px solid var(--border-color);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .vehicle-option label:hover {
-            border-color: var(--secondary-color);
-            background: rgba(59, 130, 246, 0.1);
-            transform: translateY(-2px);
-        }
-
-        .vehicle-option input[type="radio"]:checked + label {
-            border-color: var(--secondary-color);
-            background: rgba(59, 130, 246, 0.2);
-            color: var(--secondary-color);
-        }
-
-        .vehicle-icon {
-            font-size: 2rem;
-            margin-bottom: 8px;
-        }
-
-        .vehicle-name {
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .vehicle-desc {
-            font-size: 0.8rem;
-            opacity: 0.8;
-        }
-
-        @media (max-width: 480px) {
-            .vehicle-type-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
         .loading {
             display: none;
             text-align: center;
@@ -688,23 +642,11 @@
                             <label for="vehicleType">
                                 <i class="fas fa-tag"></i> Select Vehicle Type
                             </label>
-                            <div class="vehicle-type-grid">
-                                <div class="vehicle-option">
-                                    <input type="radio" id="car" name="vehicleType" value="CAR" required checked>
-                                    <label for="car">
-                                        <div class="vehicle-icon">🚗</div>
-                                        <div class="vehicle-name">Car</div>
-                                    </label>
-                                </div>
-                                
-                                <div class="vehicle-option">
-                                    <input type="radio" id="bike" name="vehicleType" value="BIKE">
-                                    <label for="bike">
-                                        <div class="vehicle-icon">🏍️</div>
-                                        <div class="vehicle-name">Motorcycle</div>
-                                    </label>
-                                </div>
-                            </div>
+                            <select id="vehicleType" name="vehicleType" required class="form-input">
+                                <option value="">-- Select Vehicle Type --</option>
+                                <option value="CAR">Car</option>
+                                <option value="BIKE">Bike</option>
+                            </select>
                         </div>
 
                         <button type="submit" class="btn btn-primary" id="bookBtn" disabled>
@@ -758,6 +700,7 @@
                 this.loadBookings();
                 this.setupEventListeners();
                 this.updateCurrentTime();
+                this.setupCrossTerminalSync();
                 setInterval(() => this.updateCurrentTime(), 1000);
             }
 
@@ -897,18 +840,45 @@
 
             async loadSlots() {
                 try {
+                    // Clear any cached mock data to force reload from database
+                    if (localStorage.getItem('publicBooking_parkingSlots')) {
+                        const cachedSlots = JSON.parse(localStorage.getItem('publicBooking_parkingSlots'));
+                        // Check if cached data is mock format (no block letters)
+                        if (cachedSlots.length > 0 && cachedSlots[0].slotId.match(/^[GF]\d{3}$/)) {
+                            console.log('Clearing mock data cache, loading from database');
+                            localStorage.removeItem('publicBooking_parkingSlots');
+                        }
+                    }
+                    
+                    // Try to load from backend first (PostgreSQL)
                     const response = await fetch('http://localhost:8085/api/slots');
                     if (response.ok) {
                         this.slots = await response.json();
+                        this.saveSlotsToStorage(); // Cache database data
                         this.renderSlots();
+                        console.log('Loaded slots from PostgreSQL database');
                     } else {
                         // Fallback to mock data if backend is not available
+                        console.log('Backend not available, using mock data');
                         this.loadMockSlots();
                     }
                 } catch (error) {
-                    console.log('Backend not available, using mock data');
+                    console.log('Error loading slots, using mock data:', error);
                     this.loadMockSlots();
                 }
+            }
+
+            loadSlotsFromStorage() {
+                const storedSlots = localStorage.getItem('publicBooking_parkingSlots');
+                if (storedSlots) {
+                    this.slots = JSON.parse(storedSlots);
+                    return true;
+                }
+                return false;
+            }
+
+            saveSlotsToStorage() {
+                localStorage.setItem('publicBooking_parkingSlots', JSON.stringify(this.slots));
             }
 
             loadMockSlots() {
@@ -929,12 +899,42 @@
 
             async loadBookings() {
                 try {
+                    // Load from localStorage first (public booking specific)
+                    this.loadBookingsFromStorage();
+                    
+                    // Also try to sync with backend if available
                     const response = await fetch('http://localhost:8085/api/bookings');
                     if (response.ok) {
-                        this.bookings = await response.json();
+                        const backendBookings = await response.json();
+                        // Merge with local bookings (public booking only)
+                        this.mergeBookings(backendBookings);
                     }
                 } catch (error) {
-                    console.log('Could not load bookings for vehicle validation');
+                    console.log('Could not load bookings from backend, using local data only');
+                }
+            }
+
+            loadBookingsFromStorage() {
+                const storedBookings = localStorage.getItem('publicBooking_bookings');
+                if (storedBookings) {
+                    this.bookings = JSON.parse(storedBookings);
+                } else {
+                    this.bookings = [];
+                }
+            }
+
+            saveBookingsToStorage() {
+                localStorage.setItem('publicBooking_bookings', JSON.stringify(this.bookings));
+            }
+
+            mergeBookings(backendBookings) {
+                // Only merge bookings that don't exist locally
+                const localBookingIds = new Set(this.bookings.map(b => b.bookingId));
+                const newBookings = backendBookings.filter(b => !localBookingIds.has(b.bookingId));
+                
+                if (newBookings.length > 0) {
+                    this.bookings.push(...newBookings);
+                    this.saveBookingsToStorage();
                 }
             }
 
@@ -983,29 +983,61 @@
             }
 
             async createBooking() {
+                console.log('createBooking called');
+                console.log('Selected slot:', this.selectedSlot);
+                
                 if (!this.selectedSlot) {
                     this.showError('Please select a parking slot');
                     return;
                 }
 
                 const formData = new FormData(document.getElementById('bookingForm'));
+                console.log('Form data:', Object.fromEntries(formData.entries()));
+                
                 const rawPhoneNumber = formData.get('contactNumber');
+                const vehicleType = formData.get('vehicleType');
+                const ownerName = formData.get('ownerName');
+                const vehicleNumber = formData.get('vehicleNumber');
+                
+                console.log('Extracted values:', { rawPhoneNumber, vehicleType, ownerName, vehicleNumber });
+                
+                // Validate all fields are filled
+                if (!ownerName || !vehicleNumber || !rawPhoneNumber || !vehicleType) {
+                    this.showError('Please fill in all fields');
+                    return;
+                }
+                
+                // Validate vehicle type is selected
+                if (vehicleType === '') {
+                    this.showError('Please select a vehicle type');
+                    return;
+                }
                 
                 // Clean phone number (remove formatting)
                 const cleanPhoneNumber = rawPhoneNumber.replace(/\D/g, '');
                 
+                // Validate phone number is 10 digits
+                if (cleanPhoneNumber.length !== 10) {
+                    this.showError('Please enter a valid 10-digit phone number');
+                    return;
+                }
+                
                 // Store form data for ticket display
                 const formDataForTicket = {
-                    ownerName: formData.get('ownerName'),
-                    vehicleType: formData.get('vehicleType') || 'CAR',
+                    ownerName: ownerName,
+                    vehicleType: vehicleType,
                     contactNumber: cleanPhoneNumber
                 };
                 
                 const bookingData = {
                     slotId: this.selectedSlot.slotId,
-                    vehicleNumber: formData.get('vehicleNumber').toUpperCase(),
-                    phoneNumber: cleanPhoneNumber // Use phoneNumber instead of contactNumber
+                    vehicleNumber: vehicleNumber.toUpperCase(),
+                    ownerName: ownerName,
+                    phoneNumber: cleanPhoneNumber,
+                    vehicleType: vehicleType
                 };
+                
+                console.log('Booking data:', bookingData);
 
                 // Client-side validation: Check if vehicle is already parked
                 if (this.bookings && this.bookings.length > 0) {
@@ -1014,7 +1046,6 @@
                     );
                     if (existingVehicle) {
                         this.showError(`Vehicle ${bookingData.vehicleNumber} is already parked in slot ${existingVehicle.parkingSlot.slotId}`);
-                        this.showLoading(false);
                         return;
                     }
                 }
@@ -1037,6 +1068,12 @@
                         this.currentBooking.ownerName = formDataForTicket.ownerName;
                         this.currentBooking.vehicleType = formDataForTicket.vehicleType;
                         this.currentBooking.contactNumber = formDataForTicket.contactNumber;
+                        
+                        // Save to localStorage for persistence
+                        this.saveBookingToStorage(this.currentBooking);
+                        
+                        // Update slot status
+                        this.updateSlotStatus(this.selectedSlot.slotId, 'OCCUPIED');
                         
                         this.showSuccess('Booking created successfully!');
                         this.showTicket();
@@ -1061,18 +1098,153 @@
                     ownerName: document.getElementById('ownerName').value, // Get from form
                     phoneNumber: bookingData.phoneNumber, // Use phoneNumber
                     contactNumber: bookingData.phoneNumber, // Also set contactNumber for compatibility
-                    vehicleType: document.querySelector('input[name="vehicleType"]:checked')?.value || 'CAR', // Get from form
+                    vehicleType: document.getElementById('vehicleType').value || 'CAR', // Get from select dropdown
                     parkingSlot: this.selectedSlot,
                     entryTime: new Date().toISOString(),
                     status: 'ACTIVE'
                 };
 
+                // Save to localStorage for persistence
+                this.saveBookingToStorage(this.currentBooking);
+                
+                // Update slot status
+                this.updateSlotStatus(this.selectedSlot.slotId, 'OCCUPIED');
+                
                 this.showSuccess('Booking created successfully!');
                 this.showTicket();
                 
                 // Notify other terminals about the new booking
                 this.notifyOtherTerminals();
                 this.resetForm();
+            }
+
+            saveBookingToStorage(booking) {
+                let bookings = JSON.parse(localStorage.getItem('publicBooking_bookings') || '[]');
+                bookings.push(booking);
+                localStorage.setItem('publicBooking_bookings', JSON.stringify(bookings));
+            }
+
+            updateSlotStatus(slotId, status) {
+                const slot = this.slots.find(s => s.slotId === slotId);
+                if (slot) {
+                    slot.status = status;
+                    this.saveSlotsToStorage();
+                    this.renderSlots();
+                }
+            }
+
+            setupCrossTerminalSync() {
+                // Listen for storage events from other tabs/windows
+                window.addEventListener('storage', (e) => {
+                    if (e.key === 'publicBooking_newBooking') {
+                        console.log('Public: New booking detected in another tab');
+                        const data = JSON.parse(e.newValue);
+                        if (data.timestamp > Date.now() - 5000) { // Only process recent events
+                            this.handleExternalBooking(data.booking);
+                        }
+                    }
+                    
+                    // Listen for professional terminal bookings
+                    if (e.key === 'newBooking') {
+                        console.log('Public: Professional booking detected');
+                        const booking = JSON.parse(e.newValue);
+                        this.handleExternalBooking(booking);
+                    }
+                    
+                    // Listen for booking completions
+                    if (e.key === 'bookingCompleted') {
+                        console.log('Public: Booking completed detected');
+                        const eventData = JSON.parse(e.newValue);
+                        this.handleBookingCompletion(eventData);
+                    }
+                });
+
+                // Listen for custom events from other terminals
+                window.addEventListener('publicBookingCreated', (e) => {
+                    console.log('Public: Public booking created event received:', e.detail);
+                    this.handleExternalBooking(e.detail.booking);
+                });
+
+                window.addEventListener('bookingCreated', (e) => {
+                    console.log('Public: Professional booking created event received:', e.detail);
+                    this.handleExternalBooking(e.detail);
+                });
+
+                window.addEventListener('exitCheckoutCompleted', (e) => {
+                    console.log('Public: Exit checkout completed event received:', e.detail);
+                    this.handleBookingCompletion(e.detail);
+                });
+
+                // Listen for slot updates from professional terminals
+                window.addEventListener('slotStatusChanged', (e) => {
+                    console.log('Public: Slot status changed event received:', e.detail);
+                    this.handleSlotUpdate(e.detail);
+                });
+
+                // Check for any pending events on load
+                this.checkPendingEvents();
+            }
+
+            handleExternalBooking(booking) {
+                // Add booking to local storage if not already present
+                let bookings = JSON.parse(localStorage.getItem('publicBooking_bookings') || '[]');
+                const existingBooking = bookings.find(b => b.bookingId === booking.bookingId);
+                
+                if (!existingBooking) {
+                    bookings.push(booking);
+                    localStorage.setItem('publicBooking_bookings', JSON.stringify(bookings));
+                    this.bookings = bookings;
+                    
+                    // Update slot status if needed
+                    if (booking.parkingSlot && booking.parkingSlot.slotId) {
+                        this.updateSlotStatus(booking.parkingSlot.slotId, 'OCCUPIED');
+                    }
+                    
+                    console.log('External booking added to public booking system');
+                }
+            }
+
+            handleBookingCompletion(eventData) {
+                // Handle booking completion - update slot status to available
+                if (eventData && eventData.slotId) {
+                    console.log(`Public: Releasing slot ${eventData.slotId} due to booking completion`);
+                    this.updateSlotStatus(eventData.slotId, 'EMPTY');
+                    
+                    // Remove the booking from local storage
+                    let bookings = JSON.parse(localStorage.getItem('publicBooking_bookings') || '[]');
+                    bookings = bookings.filter(b => b.bookingId !== eventData.bookingId);
+                    localStorage.setItem('publicBooking_bookings', JSON.stringify(bookings));
+                    this.bookings = bookings;
+                }
+            }
+
+            handleSlotUpdate(slotData) {
+                // Update slot status based on external changes
+                const slot = this.slots.find(s => s.slotId === slotData.slotId);
+                if (slot) {
+                    slot.status = slotData.status;
+                    this.saveSlotsToStorage();
+                    this.renderSlots();
+                    console.log(`Public: Slot ${slotData.slotId} updated to ${slotData.status}`);
+                }
+            }
+
+            checkPendingEvents() {
+                // Check for any pending booking events
+                const pendingBooking = localStorage.getItem('publicBooking_newBooking');
+                if (pendingBooking) {
+                    try {
+                        const data = JSON.parse(pendingBooking);
+                        if (data.timestamp > Date.now() - 10000) { // Within last 10 seconds
+                            this.handleExternalBooking(data.booking);
+                        }
+                        // Clear the event
+                        localStorage.removeItem('publicBooking_newBooking');
+                    } catch (error) {
+                        console.error('Error parsing pending booking event:', error);
+                        localStorage.removeItem('publicBooking_newBooking');
+                    }
+                }
             }
 
             notifyOtherTerminals() {
@@ -1192,6 +1364,53 @@
                     alert.style.display = 'none';
                 }, 5000);
             }
+
+            // Data Management Functions
+            clearPublicBookingData() {
+                localStorage.removeItem('publicBooking_parkingSlots');
+                localStorage.removeItem('publicBooking_bookings');
+                localStorage.removeItem('publicBooking_newBooking');
+                console.log('Public booking data cleared');
+                
+                // Reload fresh data
+                this.loadSlots();
+                this.loadBookings();
+            }
+
+            exportPublicBookingData() {
+                const data = {
+                    slots: this.slots,
+                    bookings: this.bookings,
+                    exportDate: new Date().toISOString()
+                };
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `public-booking-data-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            getPublicBookingStats() {
+                const totalSlots = this.slots.length;
+                const occupiedSlots = this.slots.filter(s => s.status === 'OCCUPIED').length;
+                const availableSlots = totalSlots - occupiedSlots;
+                const totalBookings = this.bookings.length;
+                const activeBookings = this.bookings.filter(b => b.status === 'ACTIVE').length;
+                
+                return {
+                    totalSlots,
+                    occupiedSlots,
+                    availableSlots,
+                    totalBookings,
+                    activeBookings,
+                    occupancyRate: ((occupiedSlots / totalSlots) * 100).toFixed(1)
+                };
+            }
         }
 
         // Global functions for ticket actions
@@ -1297,8 +1516,29 @@
             doc.save(fileName);
         }
 
-        // Initialize the booking system
-        const bookingSystem = new PublicBookingSystem();
+        // Initialize the public booking system
+        const publicBooking = new PublicBookingSystem();
+        
+        // Global debugging functions (for development)
+        window.debugPublicBooking = {
+            getSlots: () => publicBooking.slots,
+            getBookings: () => publicBooking.bookings,
+            getStats: () => publicBooking.getPublicBookingStats(),
+            clearData: () => publicBooking.clearPublicBookingData(),
+            exportData: () => publicBooking.exportPublicBookingData(),
+            localStorageKeys: () => {
+                return Object.keys(localStorage).filter(key => key.startsWith('publicBooking_'));
+            },
+            clearCacheAndReload: () => {
+                localStorage.removeItem('publicBooking_parkingSlots');
+                localStorage.removeItem('publicBooking_bookings');
+                console.log('Cache cleared, reloading...');
+                window.location.reload();
+            }
+        };
+        
+        console.log('Public Booking System initialized with full persistence');
+        console.log('Debug functions available: window.debugPublicBooking');
     </script>
 </body>
 </html>

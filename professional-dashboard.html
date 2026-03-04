@@ -925,6 +925,16 @@
 
             async loadSlots() {
                 try {
+                    // Clear any cached mock data to force reload from database
+                    if (localStorage.getItem('parkingSlots')) {
+                        const cachedSlots = JSON.parse(localStorage.getItem('parkingSlots'));
+                        // Check if cached data is mock format (no block letters)
+                        if (cachedSlots.length > 0 && cachedSlots[0].slotId.match(/^[GF]\d{3}$/)) {
+                            console.log('Dashboard: Clearing mock data cache, loading from database');
+                            localStorage.removeItem('parkingSlots');
+                        }
+                    }
+                    
                     // Add timeout to prevent long waits
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
@@ -937,11 +947,13 @@
                     
                     if (response.ok) {
                         this.slots = await response.json();
+                        localStorage.setItem('parkingSlots', JSON.stringify(this.slots));
+                        console.log('Dashboard: Loaded slots from PostgreSQL database');
                     } else {
                         throw new Error('Backend not available');
                     }
                 } catch (error) {
-                    console.log('Backend not available, using mock slots data');
+                    console.log('Dashboard: Backend not available, using mock slots data:', error);
                     this.loadMockSlots();
                 }
             }
