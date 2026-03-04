@@ -1014,6 +1014,10 @@
     </footer>
 
     <script>
+        // Dynamic Backend URL Configuration
+        const BACKEND_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8085' 
+            : 'https://car-system-production.up.railway.app';
         class SmartParkingExitTerminal {
             constructor() {
                 this.currentBooking = null;
@@ -1176,7 +1180,7 @@
                 this.hideAlerts();
 
                 try {
-                    const response = await fetch(`http://localhost:8085/api/bookings/${bookingId}`);
+                    const response = await fetch(`${BACKEND_URL}/api/bookings/${bookingId}`);
                     
                     if (response.ok) {
                         this.currentBooking = await response.json();
@@ -1295,7 +1299,7 @@
                 this.hideAlerts();
 
                 try {
-                    const response = await fetch(`http://localhost:8085/api/bookings/${this.currentBooking.bookingId}/checkout`, {
+                    const response = await fetch(`${BACKEND_URL}/api/bookings/${this.currentBooking.bookingId}/checkout`, {
                         method: 'PUT'
                     });
 
@@ -1326,7 +1330,7 @@
 
             async downloadReceipt(bookingId) {
                 try {
-                    const response = await fetch(`http://localhost:8085/api/bookings/${bookingId}/ticket`);
+                    const response = await fetch(`${BACKEND_URL}/api/bookings/${bookingId}/ticket`);
                     if (response.ok) {
                         const blob = await response.blob();
                         const url = window.URL.createObjectURL(blob);
@@ -1361,7 +1365,7 @@
                     this.showLoading(true);
                     this.hideAlerts();
 
-                    const response = await fetch(`http://localhost:8085/api/bookings/${bookingId}/checkout`, {
+                    const response = await fetch(`${BACKEND_URL}/api/bookings/${bookingId}/checkout`, {
                         method: 'PUT'
                     });
 
@@ -1581,7 +1585,7 @@
 
                 try {
                     // Try backend first
-                    const response = await fetch('http://localhost:8085/api/bookings');
+                    const response = await fetch(`${BACKEND_URL}/api/bookings`);
                     const bookings = await response.json();
                     
                     // Store all bookings for quickCheckout to use

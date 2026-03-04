@@ -1,0 +1,6 @@
+# Force Railway to use Nixpacks instead of Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+# Also ignore any cached Docker files
+*.dockerfile

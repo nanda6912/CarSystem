@@ -757,6 +757,10 @@
     </footer>
 
     <script>
+        // Dynamic Backend URL Configuration
+        const BACKEND_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8085' 
+            : 'https://car-system-production.up.railway.app';
         class SmartParkingDashboard {
             constructor() {
                 this.slots = [];
@@ -939,7 +943,7 @@
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
                     
-                    const response = await fetch('http://localhost:8085/api/slots', {
+                    const response = await fetch(`${BACKEND_URL}/api/slots`, {
                         signal: controller.signal
                     });
                     
@@ -993,7 +997,7 @@
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
                     
-                    const response = await fetch('http://localhost:8085/api/bookings', {
+                    const response = await fetch(`${BACKEND_URL}/api/bookings`, {
                         signal: controller.signal
                     });
                     
