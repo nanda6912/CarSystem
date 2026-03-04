@@ -1,17 +1,13 @@
-# Maven build folder
+# =============================================================================
+# Smart Parking System - Git Ignore (Docker-Free Deployment)
+# =============================================================================
+
+# Maven build artifacts
 target/
-!target/*.jar
-
-# Compiled class files
 *.class
-
-# Packaged files
 *.jar
 *.war
 *.ear
-*.zip
-*.tar.gz
-*.rar
 
 # Logs
 *.log
@@ -28,10 +24,6 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Spring Boot specific
-application-local.properties
-application-dev.properties
-
 # Environment variables
 .env
 .env.local
@@ -46,14 +38,10 @@ yarn-debug.log*
 yarn-error.log*
 
 # Vercel
-.vercel
+.vercel/
 
 # Railway
-.railway
-
-# Test outputs
-*.hprof
-*.dump
+.railway/
 
 # Temporary files
 *.tmp
@@ -63,7 +51,6 @@ yarn-error.log*
 # Application specific
 uploads/
 static/uploads/
-logs/
 
 # Database
 *.db
@@ -88,3 +75,7 @@ dependency-reduced-pom.xml
 !mvnw.cmd
 !/.mvn/wrapper/maven-wrapper.jar
 !/.mvn/wrapper/maven-wrapper.properties
+
+# Backup files
+*.bak
+*.backup
