@@ -79,3 +79,5 @@ dependency-reduced-pom.xml
 # Backup files
 *.bak
 *.backup
+
+.vercel
