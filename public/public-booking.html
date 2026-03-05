@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Parking - Public Booking</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1e3a8a;
+            --secondary-color: #3b82f6;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --dark-bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #1a1f3a 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: var(--card-bg);
+            padding: 20px 0;
+            box-shadow: var(--shadow);
+            border-bottom: 2px solid var(--primary-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color), var(--success-color));
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { transform: translateX(-100%); }
+            50% { transform: translateX(100%); }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .logo i {
+            font-size: 2.5rem;
+            color: var(--secondary-color);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 20px;
+            color: var(--success-color);
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success-color);
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-content {
+            padding: 40px 0;
+        }
+
+        .booking-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .slot-selection {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--secondary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .slot {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.8rem;
+            font-weight: bold;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slot.available {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--success-color);
+            color: var(--success-color);
+        }
+
+        .slot.available:hover {
+            background: rgba(16, 185, 129, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .slot.occupied {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+            cursor: not-allowed;
+        }
+
+        .slot.selected {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: var(--secondary-color);
+            color: var(--secondary-color);
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .slot-id {
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        .slot-floor {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        .booking-form {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        /* Specific styling for select dropdown */
+        .form-group select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 20px;
+            padding-right: 40px;
+        }
+
+        .form-group select option {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            padding: 10px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .selected-slot-display {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--secondary-color);
+            font-weight: bold;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #059669);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--success-color);
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--danger-color);
+        }
+
+        .ticket-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .ticket-modal.active {
+            display: flex;
+        }
+
+        .ticket-content {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            border: 2px solid var(--secondary-color);
+            position: relative;
+        }
+
+        .ticket-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .ticket-header h2 {
+            color: var(--secondary-color);
+            margin-bottom: 10px;
+        }
+
+        .ticket-details {
+            margin-bottom: 20px;
+        }
+
+        .ticket-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .ticket-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .ticket-value {
+            color: var(--text-primary);
+            font-weight: bold;
+        }
+
+        .ticket-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close-btn:hover {
+            color: var(--danger-color);
+        }
+
+        @media (max-width: 768px) {
+            .booking-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .slots-grid {
+                grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .container {
+                padding: 0 15px;
+            }
+            
+            .section-title {
+                font-size: 1.2rem;
+            }
+            
+            .slot {
+                font-size: 0.7rem;
+            }
+            
+            .slot-id {
+                font-size: 0.8rem;
+            }
+            
+            .slot-floor {
+                font-size: 0.6rem;
+            }
+            
+            .form-group input,
+            .form-group select {
+                font-size: 16px; /* Prevents zoom on iOS */
+                padding: 15px;
+            }
+            
+            .btn {
+                padding: 15px 20px;
+                font-size: 1rem;
+            }
+            
+            .ticket-content {
+                margin: 20px;
+                padding: 20px;
+            }
+            
+            .modal-content {
+                margin: 20px;
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .slots-grid {
+                grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+                gap: 5px;
+            }
+            
+            .slot {
+                padding: 8px;
+                font-size: 0.6rem;
+            }
+            
+            .slot-id {
+                font-size: 0.7rem;
+            }
+            
+            .slot-floor {
+                font-size: 0.5rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            
+            .stat-card {
+                padding: 15px;
+            }
+            
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            
+            .stat-label {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Phone number specific styling */
+        .phone-input {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .phone-input:focus {
+            letter-spacing: 3px;
+            transform: scale(1.02);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading i {
+            font-size: 2rem;
+            color: var(--secondary-color);
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-parking"></i>
+                    <span>Smart Parking</span>
+                </div>
+                <div class="status-bar">
+                    <div class="status-indicator">
+                        <div class="status-dot"></div>
+                        <span>System Online</span>
+                    </div>
+                    <div class="status-indicator">
+                        <i class="fas fa-clock"></i>
+                        <span id="current-time">--:--:--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="alert alert-success" id="successAlert">
+                <i class="fas fa-check-circle"></i> <span id="successMessage"></span>
+            </div>
+            
+            <div class="alert alert-error" id="errorAlert">
+                <i class="fas fa-exclamation-circle"></i> <span id="errorMessage"></span>
+            </div>
+
+            <div class="loading" id="loading">
+                <i class="fas fa-spinner"></i>
+                <p>Processing booking...</p>
+            </div>
+
+            <div class="booking-section">
+                <div class="slot-selection">
+                    <h2 class="section-title">
+                        <i class="fas fa-th"></i>
+                        Select Parking Slot
+                    </h2>
+                    <div class="slots-grid" id="slotsGrid">
+                        <!-- Slots will be populated here -->
+                    </div>
+                </div>
+
+                <div class="booking-form">
+                    <h2 class="section-title">
+                        <i class="fas fa-clipboard-list"></i>
+                        Booking Details
+                    </h2>
+                    
+                    <div class="selected-slot-display" id="selectedSlotDisplay" style="display: none;">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span id="selectedSlotText">No slot selected</span>
+                    </div>
+
+                    <form id="bookingForm">
+                        <div class="form-group">
+                            <label for="vehicleNumber">
+                                <i class="fas fa-car"></i> Vehicle Number
+                            </label>
+                            <input type="text" id="vehicleNumber" name="vehicleNumber" required 
+                                   placeholder="e.g., MH-12-AB-1234 or MH12AB1234" 
+                                   title="Enter vehicle number (e.g., MH-12-AB-1234 or MH12AB1234)">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ownerName">
+                                <i class="fas fa-user"></i> Owner Name
+                            </label>
+                            <input type="text" id="ownerName" name="ownerName" required 
+                                   placeholder="Enter your full name">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contactNumber">
+                                <i class="fas fa-phone"></i> Contact Number
+                            </label>
+                            <input type="tel" id="contactNumber" name="contactNumber" 
+                                   class="phone-input" required maxlength="10" 
+                                   placeholder="9876543210"
+                                   title="Enter 10-digit mobile number">
+                            <small style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 5px; display: block;">
+                                10-digit mobile number (e.g., 9876543210)
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="vehicleType">
+                                <i class="fas fa-tag"></i> Select Vehicle Type
+                            </label>
+                            <select id="vehicleType" name="vehicleType" required class="form-input">
+                                <option value="">-- Select Vehicle Type --</option>
+                                <option value="CAR">Car</option>
+                                <option value="BIKE">Bike</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="bookBtn" disabled>
+                            <i class="fas fa-ticket-alt"></i> Book Parking Slot
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Ticket Modal -->
+    <div class="ticket-modal" id="ticketModal">
+        <div class="ticket-content">
+            <button class="close-btn" onclick="closeTicketModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="ticket-header">
+                <h2><i class="fas fa-ticket-alt"></i> Parking Ticket</h2>
+                <p>Smart Parking System</p>
+            </div>
+            
+            <div class="ticket-details" id="ticketDetails">
+                <!-- Ticket details will be populated here -->
+            </div>
+            
+            <div class="ticket-actions">
+                <button class="btn btn-success" onclick="printTicket()">
+                    <i class="fas fa-print"></i> Print Ticket
+                </button>
+                <button class="btn btn-primary" onclick="downloadTicket()">
+                    <i class="fas fa-download"></i> Download
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dynamic Backend URL Configuration
+        const BACKEND_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8085' 
+            : 'https://smart-parking-backend.onrender.com';
+        
+        class PublicBookingSystem {
+            constructor() {
+                this.slots = [];
+                this.bookings = [];
+                this.selectedSlot = null;
+                this.currentBooking = null;
+                this.init();
+            }
+
+            init() {
+                this.loadSlots();
+                this.loadBookings();
+                this.setupEventListeners();
+                this.updateCurrentTime();
+                this.setupCrossTerminalSync();
+                setInterval(() => this.updateCurrentTime(), 1000);
+            }
+
+            setupEventListeners() {
+                document.getElementById('bookingForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.createBooking();
+                });
+
+                // Phone number formatting and validation
+                const phoneInput = document.getElementById('contactNumber');
+                phoneInput.addEventListener('input', (e) => {
+                    // Remove any non-digit characters
+                    let value = e.target.value.replace(/\D/g, '');
+                    
+                    // Limit to 10 digits
+                    if (value.length > 10) {
+                        value = value.substring(0, 10);
+                    }
+                    
+                    // Format as XXXXX-XXXXX for better readability (optional)
+                    // Comment out formatting if it causes issues
+                    // if (value.length > 5) {
+                    //     value = value.substring(0, 5) + '-' + value.substring(5);
+                    // }
+                    
+                    e.target.value = value;
+                    
+                    // Validate phone number
+                    this.validatePhoneNumber(value);
+                });
+
+                // Prevent paste of non-numeric characters
+                phoneInput.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const pastedData = (e.clipboardData || window.clipboardData).getData('text');
+                    const numericOnly = pastedData.replace(/\D/g, '').substring(0, 10);
+                    
+                    // Format the pasted number (optional)
+                    // let formattedValue = numericOnly;
+                    // if (numericOnly.length > 5) {
+                    //     formattedValue = numericOnly.substring(0, 5) + '-' + numericOnly.substring(5);
+                    // }
+                    
+                    e.target.value = numericOnly; // Use numericOnly instead of formattedValue
+                    this.validatePhoneNumber(numericOnly);
+                });
+
+                // Vehicle number formatting
+                const vehicleInput = document.getElementById('vehicleNumber');
+                vehicleInput.addEventListener('input', (e) => {
+                    // Convert to uppercase automatically
+                    let value = e.target.value.toUpperCase();
+                    
+                    // Allow common vehicle number formats
+                    // Remove spaces but allow hyphens
+                    value = value.replace(/\s+/g, '');
+                    
+                    e.target.value = value;
+                    this.validateForm();
+                });
+
+                // Add better paste handling for vehicle number
+                vehicleInput.addEventListener('paste', (e) => {
+                    // Allow paste without preventing default
+                    setTimeout(() => {
+                        let value = e.target.value.toUpperCase();
+                        value = value.replace(/\s+/g, '');
+                        e.target.value = value;
+                        this.validateForm();
+                    }, 10);
+                });
+
+                // Owner name validation
+                const nameInput = document.getElementById('ownerName');
+                nameInput.addEventListener('input', () => {
+                    this.validateForm();
+                });
+
+                // Vehicle type selection feedback
+                const vehicleInputs = document.querySelectorAll('input[name="vehicleType"]');
+                vehicleInputs.forEach(input => {
+                    input.addEventListener('change', () => {
+                        this.validateForm();
+                    });
+                });
+            }
+
+            validatePhoneNumber(phoneNumber) {
+                const cleanNumber = phoneNumber.replace(/\D/g, '');
+                const phoneInput = document.getElementById('contactNumber');
+                
+                if (cleanNumber.length === 10) {
+                    // Valid 10-digit number
+                    phoneInput.style.borderColor = 'var(--success-color)';
+                    phoneInput.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
+                    return true;
+                } else if (cleanNumber.length > 0) {
+                    // Invalid number
+                    phoneInput.style.borderColor = 'var(--danger-color)';
+                    phoneInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                    return false;
+                } else {
+                    // Empty
+                    phoneInput.style.borderColor = 'var(--border-color)';
+                    phoneInput.style.boxShadow = 'none';
+                    return false;
+                }
+            }
+
+            validateForm() {
+                const vehicleNumber = document.getElementById('vehicleNumber').value.trim();
+                const ownerName = document.getElementById('ownerName').value.trim();
+                const contactNumber = document.getElementById('contactNumber').value;
+                const vehicleType = document.querySelector('input[name="vehicleType"]:checked');
+                const bookBtn = document.getElementById('bookBtn');
+                
+                const isValid = 
+                    vehicleNumber.length > 0 &&
+                    ownerName.length > 0 &&
+                    this.validatePhoneNumber(contactNumber) &&
+                    vehicleType !== null;
+                
+                bookBtn.disabled = !isValid;
+            }
+
+            updateCurrentTime() {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('en-US', { 
+                    hour12: false, 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit' 
+                });
+                document.getElementById('current-time').textContent = timeString;
+            }
+
+            async loadSlots() {
+                try {
+                    // Clear any cached mock data to force reload from database
+                    if (localStorage.getItem('publicBooking_parkingSlots')) {
+                        const cachedSlots = JSON.parse(localStorage.getItem('publicBooking_parkingSlots'));
+                        // Check if cached data is mock format (no block letters)
+                        if (cachedSlots.length > 0 && cachedSlots[0].slotId.match(/^[GF]\d{3}$/)) {
+                            console.log('Clearing mock data cache, loading from database');
+                            localStorage.removeItem('publicBooking_parkingSlots');
+                        }
+                    }
+                    
+                    // Try to load from backend first (PostgreSQL)
+                    const response = await fetch(`${BACKEND_URL}/api/slots`);
+                    if (response.ok) {
+                        this.slots = await response.json();
+                        this.saveSlotsToStorage(); // Cache database data
+                        this.renderSlots();
+                        console.log('Loaded slots from PostgreSQL database');
+                    } else {
+                        // Fallback to mock data if backend is not available
+                        console.log('Backend not available, using mock data');
+                        this.loadMockSlots();
+                    }
+                } catch (error) {
+                    console.log('Error loading slots, using mock data:', error);
+                    this.loadMockSlots();
+                }
+            }
+
+            loadSlotsFromStorage() {
+                const storedSlots = localStorage.getItem('publicBooking_parkingSlots');
+                if (storedSlots) {
+                    this.slots = JSON.parse(storedSlots);
+                    return true;
+                }
+                return false;
+            }
+
+            saveSlotsToStorage() {
+                localStorage.setItem('publicBooking_parkingSlots', JSON.stringify(this.slots));
+            }
+
+            loadMockSlots() {
+                // Generate mock slots for demonstration
+                this.slots = [];
+                for (let floor = 0; floor < 2; floor++) {
+                    const floorPrefix = floor === 0 ? 'G' : 'F';
+                    for (let i = 1; i <= 100; i++) {
+                        this.slots.push({
+                            slotId: `${floorPrefix}${i.toString().padStart(3, '0')}`,
+                            floor: floorPrefix === 'G' ? 'Ground' : 'First',
+                            status: Math.random() > 0.3 ? 'EMPTY' : 'OCCUPIED'
+                        });
+                    }
+                }
+                this.renderSlots();
+            }
+
+            async loadBookings() {
+                try {
+                    // Load from localStorage first (public booking specific)
+                    this.loadBookingsFromStorage();
+                    
+                    // Also try to sync with backend if available
+                    const response = await fetch(`${BACKEND_URL}/api/bookings`);
+                    if (response.ok) {
+                        const backendBookings = await response.json();
+                        // Merge with local bookings (public booking only)
+                        this.mergeBookings(backendBookings);
+                    }
+                } catch (error) {
+                    console.log('Could not load bookings from backend, using local data only');
+                }
+            }
+
+            loadBookingsFromStorage() {
+                const storedBookings = localStorage.getItem('publicBooking_bookings');
+                if (storedBookings) {
+                    this.bookings = JSON.parse(storedBookings);
+                } else {
+                    this.bookings = [];
+                }
+            }
+
+            saveBookingsToStorage() {
+                localStorage.setItem('publicBooking_bookings', JSON.stringify(this.bookings));
+            }
+
+            mergeBookings(backendBookings) {
+                // Only merge bookings that don't exist locally
+                const localBookingIds = new Set(this.bookings.map(b => b.bookingId));
+                const newBookings = backendBookings.filter(b => !localBookingIds.has(b.bookingId));
+                
+                if (newBookings.length > 0) {
+                    this.bookings.push(...newBookings);
+                    this.saveBookingsToStorage();
+                }
+            }
+
+            renderSlots() {
+                const grid = document.getElementById('slotsGrid');
+                grid.innerHTML = '';
+
+                this.slots.forEach(slot => {
+                    const slotElement = document.createElement('div');
+                    slotElement.className = `slot ${slot.status.toLowerCase()}`;
+                    slotElement.dataset.slotId = slot.slotId;
+                    
+                    if (slot.status === 'EMPTY') {
+                        slotElement.onclick = () => this.selectSlot(slot);
+                    }
+
+                    slotElement.innerHTML = `
+                        <div class="slot-id">${slot.slotId}</div>
+                        <div class="slot-floor">${slot.floor}</div>
+                    `;
+
+                    grid.appendChild(slotElement);
+                });
+            }
+
+            selectSlot(slot) {
+                // Remove previous selection
+                document.querySelectorAll('.slot.selected').forEach(el => {
+                    el.classList.remove('selected');
+                });
+
+                // Add selection to clicked slot
+                const slotElement = document.querySelector(`[data-slot-id="${slot.slotId}"]`);
+                slotElement.classList.add('selected');
+
+                this.selectedSlot = slot;
+                
+                // Update selected slot display
+                const display = document.getElementById('selectedSlotDisplay');
+                const text = document.getElementById('selectedSlotText');
+                display.style.display = 'block';
+                text.textContent = `Selected: ${slot.slotId} (${slot.floor} Floor)`;
+
+                // Enable booking button
+                document.getElementById('bookBtn').disabled = false;
+            }
+
+            async createBooking() {
+                console.log('createBooking called');
+                console.log('Selected slot:', this.selectedSlot);
+                
+                if (!this.selectedSlot) {
+                    this.showError('Please select a parking slot');
+                    return;
+                }
+
+                const formData = new FormData(document.getElementById('bookingForm'));
+                console.log('Form data:', Object.fromEntries(formData.entries()));
+                
+                const rawPhoneNumber = formData.get('contactNumber');
+                const vehicleType = formData.get('vehicleType');
+                const ownerName = formData.get('ownerName');
+                const vehicleNumber = formData.get('vehicleNumber');
+                
+                console.log('Extracted values:', { rawPhoneNumber, vehicleType, ownerName, vehicleNumber });
+                
+                // Validate all fields are filled
+                if (!ownerName || !vehicleNumber || !rawPhoneNumber || !vehicleType) {
+                    this.showError('Please fill in all fields');
+                    return;
+                }
+                
+                // Validate vehicle type is selected
+                if (vehicleType === '') {
+                    this.showError('Please select a vehicle type');
+                    return;
+                }
+                
+                // Clean phone number (remove formatting)
+                const cleanPhoneNumber = rawPhoneNumber.replace(/\D/g, '');
+                
+                // Validate phone number is 10 digits
+                if (cleanPhoneNumber.length !== 10) {
+                    this.showError('Please enter a valid 10-digit phone number');
+                    return;
+                }
+                
+                // Store form data for ticket display
+                const formDataForTicket = {
+                    ownerName: ownerName,
+                    vehicleType: vehicleType,
+                    contactNumber: cleanPhoneNumber
+                };
+                
+                const bookingData = {
+                    slotId: this.selectedSlot.slotId,
+                    vehicleNumber: vehicleNumber.toUpperCase(),
+                    ownerName: ownerName,
+                    phoneNumber: cleanPhoneNumber,
+                    vehicleType: vehicleType
+                };
+                
+                console.log('Booking data:', bookingData);
+
+                // Client-side validation: Check if vehicle is already parked
+                if (this.bookings && this.bookings.length > 0) {
+                    const existingVehicle = this.bookings.find(b => 
+                        b.status === 'ACTIVE' && b.vehicleNumber.toUpperCase() === bookingData.vehicleNumber
+                    );
+                    if (existingVehicle) {
+                        this.showError(`Vehicle ${bookingData.vehicleNumber} is already parked in slot ${existingVehicle.parkingSlot.slotId}`);
+                        return;
+                    }
+                }
+
+                this.showLoading(true);
+
+                try {
+                    const response = await fetch(`${BACKEND_URL}/api/bookings`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(bookingData)
+                    });
+
+                    if (response.ok) {
+                        this.currentBooking = await response.json();
+                        
+                        // Add form data to booking for ticket display
+                        this.currentBooking.ownerName = formDataForTicket.ownerName;
+                        this.currentBooking.vehicleType = formDataForTicket.vehicleType;
+                        this.currentBooking.contactNumber = formDataForTicket.contactNumber;
+                        
+                        // Save to localStorage for persistence
+                        this.saveBookingToStorage(this.currentBooking);
+                        
+                        // Update slot status
+                        this.updateSlotStatus(this.selectedSlot.slotId, 'OCCUPIED');
+                        
+                        this.showSuccess('Booking created successfully!');
+                        this.showTicket();
+                        this.resetForm();
+                    } else {
+                        const error = await response.json();
+                        this.showError(error.error || 'Booking failed. Please try again.');
+                    }
+                } catch (error) {
+                    console.log('Backend not available, creating mock booking');
+                    this.createMockBooking(bookingData);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            createMockBooking(bookingData) {
+                // Create mock booking for demonstration
+                this.currentBooking = {
+                    bookingId: 'BK' + Date.now(),
+                    vehicleNumber: bookingData.vehicleNumber,
+                    ownerName: document.getElementById('ownerName').value, // Get from form
+                    phoneNumber: bookingData.phoneNumber, // Use phoneNumber
+                    contactNumber: bookingData.phoneNumber, // Also set contactNumber for compatibility
+                    vehicleType: document.getElementById('vehicleType').value || 'CAR', // Get from select dropdown
+                    parkingSlot: this.selectedSlot,
+                    entryTime: new Date().toISOString(),
+                    status: 'ACTIVE'
+                };
+
+                // Save to localStorage for persistence
+                this.saveBookingToStorage(this.currentBooking);
+                
+                // Update slot status
+                this.updateSlotStatus(this.selectedSlot.slotId, 'OCCUPIED');
+                
+                this.showSuccess('Booking created successfully!');
+                this.showTicket();
+                
+                // Notify other terminals about the new booking
+                this.notifyOtherTerminals();
+                this.resetForm();
+            }
+
+            saveBookingToStorage(booking) {
+                let bookings = JSON.parse(localStorage.getItem('publicBooking_bookings') || '[]');
+                bookings.push(booking);
+                localStorage.setItem('publicBooking_bookings', JSON.stringify(bookings));
+            }
+
+            updateSlotStatus(slotId, status) {
+                const slot = this.slots.find(s => s.slotId === slotId);
+                if (slot) {
+                    slot.status = status;
+                    this.saveSlotsToStorage();
+                    this.renderSlots();
+                }
+            }
+
+            setupCrossTerminalSync() {
+                // Listen for storage events from other tabs/windows
+                window.addEventListener('storage', (e) => {
+                    if (e.key === 'publicBooking_newBooking') {
+                        console.log('Public: New booking detected in another tab');
+                        const data = JSON.parse(e.newValue);
+                        if (data.timestamp > Date.now() - 5000) { // Only process recent events
+                            this.handleExternalBooking(data.booking);
+                        }
+                    }
+                    
+                    // Listen for professional terminal bookings
+                    if (e.key === 'newBooking') {
+                        console.log('Public: Professional booking detected');
+                        const booking = JSON.parse(e.newValue);
+                        this.handleExternalBooking(booking);
+                    }
+                    
+                    // Listen for booking completions
+                    if (e.key === 'bookingCompleted') {
+                        console.log('Public: Booking completed detected');
+                        const eventData = JSON.parse(e.newValue);
+                        this.handleBookingCompletion(eventData);
+                    }
+                });
+
+                // Listen for custom events from other terminals
+                window.addEventListener('publicBookingCreated', (e) => {
+                    console.log('Public: Public booking created event received:', e.detail);
+                    this.handleExternalBooking(e.detail.booking);
+                });
+
+                window.addEventListener('bookingCreated', (e) => {
+                    console.log('Public: Professional booking created event received:', e.detail);
+                    this.handleExternalBooking(e.detail);
+                });
+
+                window.addEventListener('exitCheckoutCompleted', (e) => {
+                    console.log('Public: Exit checkout completed event received:', e.detail);
+                    this.handleBookingCompletion(e.detail);
+                });
+
+                // Listen for slot updates from professional terminals
+                window.addEventListener('slotStatusChanged', (e) => {
+                    console.log('Public: Slot status changed event received:', e.detail);
+                    this.handleSlotUpdate(e.detail);
+                });
+
+                // Check for any pending events on load
+                this.checkPendingEvents();
+            }
+
+            handleExternalBooking(booking) {
+                // Add booking to local storage if not already present
+                let bookings = JSON.parse(localStorage.getItem('publicBooking_bookings') || '[]');
+                const existingBooking = bookings.find(b => b.bookingId === booking.bookingId);
+                
+                if (!existingBooking) {
+                    bookings.push(booking);
+                    localStorage.setItem('publicBooking_bookings', JSON.stringify(bookings));
+                    this.bookings = bookings;
+                    
+                    // Update slot status if needed
+                    if (booking.parkingSlot && booking.parkingSlot.slotId) {
+                        this.updateSlotStatus(booking.parkingSlot.slotId, 'OCCUPIED');
+                    }
+                    
+                    console.log('External booking added to public booking system');
+                }
+            }
+
+            handleBookingCompletion(eventData) {
+                // Handle booking completion - update slot status to available
+                if (eventData && eventData.slotId) {
+                    console.log(`Public: Releasing slot ${eventData.slotId} due to booking completion`);
+                    this.updateSlotStatus(eventData.slotId, 'EMPTY');
+                    
+                    // Remove the booking from local storage
+                    let bookings = JSON.parse(localStorage.getItem('publicBooking_bookings') || '[]');
+                    bookings = bookings.filter(b => b.bookingId !== eventData.bookingId);
+                    localStorage.setItem('publicBooking_bookings', JSON.stringify(bookings));
+                    this.bookings = bookings;
+                }
+            }
+
+            handleSlotUpdate(slotData) {
+                // Update slot status based on external changes
+                const slot = this.slots.find(s => s.slotId === slotData.slotId);
+                if (slot) {
+                    slot.status = slotData.status;
+                    this.saveSlotsToStorage();
+                    this.renderSlots();
+                    console.log(`Public: Slot ${slotData.slotId} updated to ${slotData.status}`);
+                }
+            }
+
+            checkPendingEvents() {
+                // Check for any pending booking events
+                const pendingBooking = localStorage.getItem('publicBooking_newBooking');
+                if (pendingBooking) {
+                    try {
+                        const data = JSON.parse(pendingBooking);
+                        if (data.timestamp > Date.now() - 10000) { // Within last 10 seconds
+                            this.handleExternalBooking(data.booking);
+                        }
+                        // Clear the event
+                        localStorage.removeItem('publicBooking_newBooking');
+                    } catch (error) {
+                        console.error('Error parsing pending booking event:', error);
+                        localStorage.removeItem('publicBooking_newBooking');
+                    }
+                }
+            }
+
+            notifyOtherTerminals() {
+                if (!this.currentBooking) return;
+
+                // Store in localStorage for other tabs (public booking specific)
+                localStorage.setItem('publicBooking_newBooking', JSON.stringify({
+                    booking: this.currentBooking,
+                    timestamp: Date.now()
+                }));
+
+                // Dispatch custom events for other terminals on same page
+                window.dispatchEvent(new CustomEvent('publicBookingCreated', {
+                    detail: this.currentBooking
+                }));
+
+                // Also trigger general booking event for compatibility
+                window.dispatchEvent(new CustomEvent('bookingCreated', {
+                    detail: this.currentBooking
+                }));
+
+                console.log('Public booking notification sent to all terminals');
+            }
+
+            showTicket() {
+                if (!this.currentBooking) return;
+
+                const ticketDetails = document.getElementById('ticketDetails');
+                const entryTime = new Date(this.currentBooking.entryTime);
+                
+                ticketDetails.innerHTML = `
+                    <div class="ticket-row">
+                        <span class="ticket-label">Booking ID:</span>
+                        <span class="ticket-value">${this.currentBooking.bookingId}</span>
+                    </div>
+                    <div class="ticket-row">
+                        <span class="ticket-label">Vehicle Number:</span>
+                        <span class="ticket-value">${this.currentBooking.vehicleNumber}</span>
+                    </div>
+                    <div class="ticket-row">
+                        <span class="ticket-label">Owner Name:</span>
+                        <span class="ticket-value">${this.currentBooking.ownerName || 'N/A'}</span>
+                    </div>
+                    <div class="ticket-row">
+                        <span class="ticket-label">Contact Number:</span>
+                        <span class="ticket-value">${this.currentBooking.phoneNumber || this.currentBooking.contactNumber || 'N/A'}</span>
+                    </div>
+                    <div class="ticket-row">
+                        <span class="ticket-label">Vehicle Type:</span>
+                        <span class="ticket-value">${this.currentBooking.vehicleType || 'CAR'}</span>
+                    </div>
+                    <div class="ticket-row">
+                        <span class="ticket-label">Parking Slot:</span>
+                        <span class="ticket-value">${this.currentBooking.parkingSlot.slotId} (${this.currentBooking.parkingSlot.floor} Floor)</span>
+                    </div>
+                    <div class="ticket-row">
+                        <span class="ticket-label">Entry Time:</span>
+                        <span class="ticket-value">${entryTime.toLocaleString()}</span>
+                    </div>
+                    <div class="ticket-row">
+                        <span class="ticket-label">Status:</span>
+                        <span class="ticket-value">${this.currentBooking.status}</span>
+                    </div>
+                `;
+
+                // Show the modal
+                document.getElementById('ticketModal').classList.add('active');
+            }
+
+            resetForm() {
+                document.getElementById('bookingForm').reset();
+                document.getElementById('selectedSlotDisplay').style.display = 'none';
+                document.getElementById('bookBtn').disabled = true;
+                
+                // Remove slot selection
+                document.querySelectorAll('.slot.selected').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                
+                this.selectedSlot = null;
+                
+                // Reload slots to update status
+                setTimeout(() => this.loadSlots(), 1000);
+            }
+
+            showLoading(show) {
+                document.getElementById('loading').style.display = show ? 'block' : 'none';
+            }
+
+            showSuccess(message) {
+                const alert = document.getElementById('successAlert');
+                document.getElementById('successMessage').textContent = message;
+                alert.style.display = 'block';
+                document.getElementById('errorAlert').style.display = 'none';
+                
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 5000);
+            }
+
+            hideAlerts() {
+                document.getElementById('successAlert').style.display = 'none';
+                document.getElementById('errorAlert').style.display = 'none';
+            }
+
+            closeTicketModal() {
+                document.getElementById('ticketModal').classList.remove('active');
+            }
+
+            showError(message) {
+                const alert = document.getElementById('errorAlert');
+                document.getElementById('errorMessage').textContent = message;
+                alert.style.display = 'block';
+                document.getElementById('successAlert').style.display = 'none';
+                
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 5000);
+            }
+
+            // Data Management Functions
+            clearPublicBookingData() {
+                localStorage.removeItem('publicBooking_parkingSlots');
+                localStorage.removeItem('publicBooking_bookings');
+                localStorage.removeItem('publicBooking_newBooking');
+                console.log('Public booking data cleared');
+                
+                // Reload fresh data
+                this.loadSlots();
+                this.loadBookings();
+            }
+
+            exportPublicBookingData() {
+                const data = {
+                    slots: this.slots,
+                    bookings: this.bookings,
+                    exportDate: new Date().toISOString()
+                };
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `public-booking-data-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            getPublicBookingStats() {
+                const totalSlots = this.slots.length;
+                const occupiedSlots = this.slots.filter(s => s.status === 'OCCUPIED').length;
+                const availableSlots = totalSlots - occupiedSlots;
+                const totalBookings = this.bookings.length;
+                const activeBookings = this.bookings.filter(b => b.status === 'ACTIVE').length;
+                
+                return {
+                    totalSlots,
+                    occupiedSlots,
+                    availableSlots,
+                    totalBookings,
+                    activeBookings,
+                    occupancyRate: ((occupiedSlots / totalSlots) * 100).toFixed(1)
+                };
+            }
+        }
+
+        // Global functions for ticket actions
+        function closeTicketModal() {
+            document.getElementById('ticketModal').style.display = 'none';
+        }
+
+        function printTicket() {
+            window.print();
+        }
+
+        function downloadTicket() {
+            const booking = bookingSystem.currentBooking;
+            if (!booking) return;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            // Set up the PDF
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 20;
+            let yPosition = margin;
+
+            // Header
+            doc.setFillColor(30, 58, 138);
+            doc.rect(0, 0, pageWidth, 40, 'F');
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(24);
+            doc.setFont(undefined, 'bold');
+            doc.text('Smart Parking System', pageWidth / 2, 25, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'normal');
+            doc.text('Parking Ticket', pageWidth / 2, 32, { align: 'center' });
+
+            // Reset text color for content
+            doc.setTextColor(0, 0, 0);
+            yPosition = 60;
+
+            // Title
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('Booking Confirmation', pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += 20;
+
+            // Compact receipt-style layout
+            doc.setFillColor(240, 240, 240);
+            doc.rect(margin, yPosition - 5, pageWidth - 2 * margin, 80, 'F');
+            doc.setDrawColor(200, 200, 200);
+            doc.rect(margin, yPosition - 5, pageWidth - 2 * margin, 80, 'S');
+            
+            // Left column - Booking details
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text(`BOOKING ID: ${booking.bookingId}`, margin + 10, yPosition + 5);
+            doc.text(`VEHICLE NO: ${booking.vehicleNumber}`, margin + 10, yPosition + 15);
+            doc.text(`OWNER: ${booking.ownerName || 'N/A'}`, margin + 10, yPosition + 25);
+            
+            // Right column - Parking details
+            doc.text(`SLOT: ${booking.parkingSlot.slotId}`, margin + 120, yPosition + 5);
+            doc.text(`FLOOR: ${booking.parkingSlot.floor || 'GND'}`, margin + 120, yPosition + 15);
+            doc.text(`TYPE: ${booking.vehicleType || 'CAR'}`, margin + 120, yPosition + 25);
+            
+            // Bottom section
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('BOOKING CONFIRMED', pageWidth / 2, yPosition + 45, { align: 'center' });
+            
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.text('Please keep this ticket safe for exit', pageWidth / 2, yPosition + 55, { align: 'center' });
+            doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPosition + 65, { align: 'center' });
+            
+            // Reset text color
+            doc.setTextColor(0, 0, 0);
+            yPosition += 30;
+
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('Thank You!', pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += 10;
+
+            doc.setFont(undefined, 'italic');
+            doc.setFontSize(12);
+            doc.text('Thank you for choosing Smart Parking System', pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += 15;
+
+            // Footer
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text('This is a computer-generated ticket', pageWidth / 2, pageHeight - 20, { align: 'center' });
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, pageWidth / 2, pageHeight - 15, { align: 'center' });
+
+            // Save the PDF
+            const fileName = `parking_ticket_${booking.bookingId}_${new Date().getTime()}.pdf`;
+            doc.save(fileName);
+        }
+
+        // Initialize the public booking system
+        const publicBooking = new PublicBookingSystem();
+        
+        // Global debugging functions (for development)
+        window.debugPublicBooking = {
+            getSlots: () => publicBooking.slots,
+            getBookings: () => publicBooking.bookings,
+            getStats: () => publicBooking.getPublicBookingStats(),
+            clearData: () => publicBooking.clearPublicBookingData(),
+            exportData: () => publicBooking.exportPublicBookingData(),
+            localStorageKeys: () => {
+                return Object.keys(localStorage).filter(key => key.startsWith('publicBooking_'));
+            },
+            clearCacheAndReload: () => {
+                localStorage.removeItem('publicBooking_parkingSlots');
+                localStorage.removeItem('publicBooking_bookings');
+                console.log('Cache cleared, reloading...');
+                window.location.reload();
+            }
+        };
+        
+        console.log('Public Booking System initialized with full persistence');
+        console.log('Debug functions available: window.debugPublicBooking');
+    </script>
+</body>
+</html>

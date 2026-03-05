@@ -4,7 +4,7 @@
   "description": "Smart Parking System Frontend - Professional Management Applications",
   "main": "auth.html",
   "scripts": {
-    "build": "echo 'Static build complete'",
+    "build": "node build.js",
     "start": "echo 'Frontend ready for deployment'",
     "deploy": "vercel --prod"
   },

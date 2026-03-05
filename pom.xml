@@ -296,5 +296,13 @@
                 <spring.profiles.active>railway</spring.profiles.active>
             </properties>
         </profile>
+        
+        <!-- Render Profile -->
+        <profile>
+            <id>render</id>
+            <properties>
+                <spring.profiles.active>render</spring.profiles.active>
+            </properties>
+        </profile>
     </profiles>
 </project>

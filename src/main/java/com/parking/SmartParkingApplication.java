@@ -11,7 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * 
  * Enterprise-grade parking management system with:
  * - Real-time synchronization across terminals
- * - PostgreSQL 18.2 database integration
+ * - PostgreSQL database integration
  * - RESTful API architecture
  * - Professional authentication system
  * - PDF ticket generation
