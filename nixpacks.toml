@@ -9,7 +9,8 @@ cmd = "java -jar target/*.jar"
 
 [healthcheck]
 path = "/actuator/health"
-timeout = 100
+timeout = 300
+gracePeriod = 60
 
 [variables]
-JAVA_OPTS = "-Xmx512m -Xms256m"
+JAVA_OPTS = "-Xmx1024m -Xms512m -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
