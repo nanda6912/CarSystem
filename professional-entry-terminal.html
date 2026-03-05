@@ -875,12 +875,7 @@
     </footer>
 
     <script>
-        // Dynamic Backend URL Configuration
-        const BACKEND_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:8085' 
-            : 'https://smart-parking-backend.onrender.com';
-        
-        class EntryTerminal {
+        class SmartParkingTerminal {
             constructor() {
                 this.slots = [];
                 this.selectedSlot = null;
@@ -1143,6 +1138,17 @@
                             localStorage.removeItem('parkingSlots');
                         }
                     }
+                    
+                    // Add timeout to prevent long waits
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+                    
+                    const response = await fetch('http://localhost:8085/api/slots', {
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
                     if (response.ok) {
                         this.slots = await response.json();
                         this.saveSlotsToStorage(); // Cache database data
@@ -1327,7 +1333,7 @@
 
                 try {
                     // Try backend first
-                    const response = await fetch(`${BACKEND_URL}/api/bookings`, {
+                    const response = await fetch('http://localhost:8085/api/bookings', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
