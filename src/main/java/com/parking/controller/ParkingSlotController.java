@@ -9,7 +9,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -69,5 +71,64 @@ public class ParkingSlotController {
         
         ParkingStats stats = new ParkingStats(totalSlots, availableCount, occupiedCount);
         return ResponseEntity.ok(stats);
+    }
+
+    // Authentication endpoints
+    private static final Map<String, String> USERS = new HashMap<>();
+    
+    static {
+        // Default credentials (username: password)
+        USERS.put("admin", "admin123");
+        USERS.put("exit", "exit123");
+        USERS.put("entry", "entry123");
+    }
+
+    @PostMapping("/auth/login")
+    public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest) {
+        String username = loginRequest.get("username");
+        String password = loginRequest.get("password");
+        String role = loginRequest.get("role");
+
+        log.info("Login attempt for user: {} with role: {}", username, role);
+
+        // Validate credentials
+        if (username == null || password == null || role == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", "Missing required fields"
+            ));
+        }
+
+        // Check if credentials are valid
+        String expectedPassword = USERS.get(role);
+        if (expectedPassword == null || !expectedPassword.equals(password)) {
+            log.warn("Invalid login attempt for role: {}", role);
+            return ResponseEntity.status(401).body(Map.of(
+                "success", false,
+                "message", "Invalid credentials"
+            ));
+        }
+
+        // Successful login
+        log.info("Successful login for user: {} with role: {}", username, role);
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Login successful",
+            "user", Map.of(
+                "username", username,
+                "role", role
+            )
+        ));
+    }
+
+    @PostMapping("/auth/logout")
+    public ResponseEntity<?> logout(@RequestBody Map<String, String> logoutRequest) {
+        String role = logoutRequest.get("role");
+        log.info("Logout for role: {}", role);
+        
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Logout successful"
+        ));
     }
 }
