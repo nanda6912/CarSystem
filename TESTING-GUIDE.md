@@ -2,7 +2,7 @@
 
 ## 📋 **Table of Contents**
 1. [Testing Strategy](#testing-strategy)
-2. [Automated CI/CD Testing](#automated-cicd-testing)
+2. [Local Testing Setup](#local-testing-setup)
 3. [Unit Testing](#unit-testing)
 4. [Integration Testing](#integration-testing)
 5. [API Testing](#api-testing)
@@ -10,8 +10,7 @@
 7. [Performance Testing](#performance-testing)
 8. [Security Testing](#security-testing)
 9. [End-to-End Testing](#end-to-end-testing)
-10. [Docker Testing](#docker-testing)
-11. [Test Reports & Metrics](#test-reports--metrics)
+10. [Test Reports & Metrics](#test-reports--metrics)
 
 ---
 
@@ -30,39 +29,18 @@
 - **E2E Tests**: Critical user journeys
 - **Performance Tests**: Load and stress testing
 - **Security Tests**: Vulnerability scanning
-- **Docker Tests**: Container functionality
 
-### **🚀 Automated Testing Pipeline**
-The system includes a **complete CI/CD pipeline** that automatically runs:
-- Backend unit and integration tests
-- Frontend validation tests
-- Security vulnerability scanning
-- Performance load testing
-- Docker container testing
+### **🧪 Local Testing Setup**
+The system supports comprehensive local testing with Maven and manual testing procedures.
 
 ---
 
-## **🔄 Automated CI/CD Testing**
+## **� Local Testing Setup**
 
-### **GitHub Actions Pipeline**
-```yaml
-# .github/workflows/ci-cd.yml
-# Automatically runs on every push and pull request
-
-Jobs:
-- backend-test: PostgreSQL + JUnit tests
-- frontend-validation: HTML/CSS/JS validation
-- security-scan: Trivy + OWASP scanning
-- performance-test: Load testing with Apache Bench
-- build-package: Docker image creation
-- deploy-staging: Staging environment deployment
-- deploy-production: Production deployment
-```
-
-### **Running Automated Tests**
+### **Running Tests Locally**
 ```bash
-# Run all tests locally
-mvn clean test
+# Run all unit tests
+mvn test
 
 # Run with coverage report
 mvn test jacoco:report
@@ -72,6 +50,18 @@ mvn verify -P integration-tests
 
 # Run performance tests
 mvn verify -P performance-tests
+```
+
+### **Test Environment Setup**
+```bash
+# Start PostgreSQL for testing
+net start postgresql-x64-18
+
+# Create test database
+$env:PGPASSWORD="Nanda@123"; psql -U postgres -c "CREATE DATABASE smart_parking_test;"
+
+# Run tests with test database
+mvn test -Dspring.profiles.active=test
 ```
 
 ---

@@ -6,11 +6,10 @@
 3. [Local Development Setup](#local-development-setup)
 4. [Production Deployment](#production-deployment)
 5. [Database Setup](#database-setup)
-6. [Docker Deployment](#docker-deployment)
-7. [Cloud Deployment](#cloud-deployment)
-8. [Testing & Verification](#testing--verification)
-9. [Monitoring & Maintenance](#monitoring--maintenance)
-10. [Troubleshooting](#troubleshooting)
+6. [Cloud Deployment](#cloud-deployment)
+7. [Testing & Verification](#testing--verification)
+8. [Monitoring & Maintenance](#monitoring--maintenance)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -23,7 +22,6 @@
 - **Git** (for version control)
 
 ### **Optional Requirements**
-- **Docker & Docker Compose** (for containerized deployment)
 - **Node.js 16+** (for development tools)
 - **IDE** (IntelliJ IDEA, Eclipse, VS Code)
 - **Nginx** (for reverse proxy)
@@ -31,17 +29,6 @@
 ---
 
 ## **⚡ Quick Start Options**
-
-### **🐳 Docker Deployment (Recommended - 2 minutes)**
-```bash
-# Clone and run with Docker
-git clone https://github.com/nanda6912/CarSystem.git
-cd CarSystem
-docker-compose up -d
-
-# Access: http://localhost:8085
-# Database: localhost:5432
-```
 
 ### **🏃‍♂️ Quick Local Setup (5 minutes)**
 ```bash
