@@ -30,8 +30,14 @@ public class SmartParkingApplication {
         SpringApplication app = new SpringApplication(SmartParkingApplication.class);
         
         // Set default profile if none specified
-        if (System.getProperty("spring.profiles.active") == null || System.getProperty("spring.profiles.active").isEmpty()) {
+        String activeProfile = System.getProperty("spring.profiles.active");
+        if (activeProfile == null || activeProfile.trim().isEmpty()) {
             app.setAdditionalProfiles("dev");
+        }
+        
+        // Force render profile on Render
+        if ("render".equals(activeProfile)) {
+            System.setProperty("spring.profiles.active", "render");
         }
         
         app.run(args);
